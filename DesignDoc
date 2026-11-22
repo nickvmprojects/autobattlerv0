@@ -1,0 +1,227 @@
+# Racing Auto Battler: Design Doc v0.1
+
+Single source of truth for the first playable. Keep it small; avoid gold plating.
+
+**Legend**
+- **Decided**: agreed in design discussion.
+- **Draft**: working numbers or rules, expected to change after bot simulations.
+- **Open**: not decided yet.
+
+---
+
+## 1. Concept
+
+An asynchronous browser auto battler with a racing-team theme. The player builds a "racing team" out of math functions during a shop phase, then the team races a field of recorded cars in an execution phase. No live opponents are needed: opponents are stored snapshots or bot builds.
+
+Design pillars:
+- **Synergy over big numbers.** The fun is finding slot combinations that enable each other. All-in on one slot should be worse than a balanced, synergistic build.
+- **Every round matters.** No interest system, no pressure to skip early rounds.
+- **Thematic builds.** Players should recognise builds by theme ("the tire gamble"), not by guessing which number is biggest.
+- **Phone-friendly.** Everything should work well on a phone screen.
+
+## 2. Game Flow (Decided)
+
+Rounds alternate: Round 1 shop, Round 1 race, Round 2 shop, Round 2 race, and so on.
+
+- A run has a **fixed number of rounds** (**Open**: how many; the first playable needs about 6 so the tier fade can be observed).
+- Statistics persist outside the run (see section 11).
+
+## 3. Slots (Decided)
+
+The player has **6 slots**. Each holds exactly one function. Buying a function replaces the one in that slot. Every slot starts with a **tier 0** function.
+
+| # | Slot | Role |
+|---|------|------|
+| 1 | Engine | Raw power, the main scaling function |
+| 2 | Design | Multiplies engine power |
+| 3 | Tires | Rated limit; blowout risk when engine power exceeds it |
+| 4 | Handling | Shapes the pilot roll and blowout risk |
+| 5 | Pilot | Random multiplier, rolled once at the start of each race |
+| 6 | Marketing | Economy and shop quality; does not affect the race |
+
+Possible future feature (**Open**): selling a slot's function (reverts to base tier 0) for credits.
+
+## 4. Race Rules (Decided unless marked)
+
+- All cars run steps x = 1, 2, 3, ... with **no upper limit on x**.
+- At each step, a car adds its **step output** to its accumulated total.
+- **First car to reach the round's threshold wins.** Finish order for all cars is by finish time, interpolated as a fractional x where the total crosses the threshold. This makes exact ties rare.
+- The pilot roll is **rerolled every race**, including for snapshot and bot cars. It also separates two cars with identical builds.
+- **Safety cap (Decided):** if a car has not finished by about x = 30, the race ends for it and it is ranked by accumulated total.
+
+### Step output (Draft wiring)
+
+```
+power  = Engine(x)
+power  = power * (1 + Design(x))            // design multiplier, scaled small
+output = power * PilotRoll
+```
+
+Tires add a risk layer on top of this (section 6). Handling modifies the pilot roll and blowout risk (section 6).
+
+### Threshold (Decided approach, Draft numbers)
+
+- The threshold **increases every round**.
+- It should be calibrated from bot results: set it so that a typical (median bot) car finishes at around x = 10 in that round.
+- Placeholder until bots exist: Fibonacci-like growth per round.
+
+## 5. Tiers, Archetypes and Upgrades
+
+### Tiers (Decided)
+
+- The shop offers tier 1 in round 1, tiers 1-2 in round 2, tiers 1-3 in round 3, and so on (a new tier unlocks each round).
+- Tier 0 parts are the starting parts. They never appear in the shop, so they can only be replaced, not upgraded.
+- Each tier raises the function's power. Starting point for power functions: tier 1 = x^2, tier 2 = x^2.2, tier 3 = x^2.5, continuing the pattern (**Open**: exponent ladder for higher tiers).
+
+### Archetypes (Decided structure, Draft content)
+
+Each slot has **3 or 4 archetypes**, defined once. A tier only changes the numbers (exponent, limit, floor, income), not what the archetype does. That gives 3-4 options at every slot-tier combination from a small table of formulas.
+
+Archetypes are not required to be equal in raw strength. Balance comes from price (section 7).
+
+| Slot | Archetype | Hook |
+|------|-----------|------|
+| Engine | Sprinter | Strong early, flattens late |
+| Engine | Endurance | Weak early, steepest late |
+| Engine | Turbo | Highest raw power, but counts 30% extra against the tire limit |
+| Design | Aero | Multiplier grows with x |
+| Design | Ground effect | Steady multiplier, strong from the start |
+| Design | Lightweight | Smaller multiplier, engine counts less against the tire limit |
+| Design | R&D | Smaller multiplier, raises the chance of upgrade offers in the shop |
+| Tires | Hard compound | High limit, no bonus, full blowout penalty |
+| Tires | Soft compound | Lower limit, adds a little power |
+| Tires | Reinforced | Lower limit, milder blowout penalty |
+| Handling | Stabilizer | Raises the pilot's roll floor |
+| Handling | Traction control | Lowers the blowout chance |
+| Handling | Race setup | Raises the pilot's top roll, no floor effect |
+| Pilot | Veteran | Narrow, consistent roll range |
+| Pilot | Wildcard | Wide range with a higher maximum |
+| Pilot | Opportunist | Low start, improves as x grows |
+| Marketing | Sponsor | Most credits, nothing else |
+| Marketing | Scouts | Fewer credits, plus rerolls equal to its tier |
+| Marketing | Brand | Medium credits, better odds of higher-tier offers (raises shop quality) |
+
+Pilot roll ranges widen with tier (Draft): tier 0 is always 30%, tier 1 is 20-50%, tier 2 is 10-70%, and so on. Higher tiers raise the average and the variance.
+
+### Upgrades (Decided rules, Draft numbers)
+
+- Up to **3 upgrades** per function.
+- An upgrade is only possible when the shop offers the **exact same slot, archetype and tier** as a function the player owns. There is no separate upgrade roll; upgrades come from the normal random draw.
+- Upgrades are rare, so they are strong. Draft multipliers on the function: **x1.5, x2.5, x4.0**.
+  - Level 1 is a nice boost, still below an uptier.
+  - Level 2 is stronger but should not become the norm.
+  - The goal is to end up with high-tier, upgraded parts.
+- Rule of thumb for tuning: at a typical finishing x of about 10, a multiplier m is worth about log10(m) of exponent. So x1.5 is a bit under one tier step, x2.5 about two, x4.0 about three.
+- The **R&D** archetype biases offers toward functions the player already owns.
+
+## 6. Synergies and Risk
+
+Scalers carry power, enablers shape it. Going all-in on the engine should fail twice: the tires blow, and a bad pilot roll ruins the run.
+
+**Tire limit and blowouts (Draft):**
+- Each tire function has a rated limit.
+- At or below the limit there is no blowout risk. Above it, each step has a blowout chance that grows with the overshoot, for example 0% at the limit rising linearly to about 30% per step at double the limit.
+- A blowout **reduces the car's per-step output by 90%** (it reduces growth, it does not wipe the accumulated total). The car still reaches the threshold eventually.
+- **Open:** does a blowout last for the rest of the race or only for a few steps? The working assumption is the rest of the race.
+- Tire archetypes vary the penalty (Reinforced is milder). Handling's Traction control lowers the chance.
+- A side effect: a car that overpowers its tires finishes in fewer steps, so it faces fewer blowout chances.
+
+**Handling and pilot (Draft):** Stabilizer raises the roll floor, so a good handling system makes a high-variance pilot safer to buy.
+
+**Open:** more thematic risk and reward hooks like the tire gamble (see the ideas list at the end).
+
+## 7. Economy and Prices
+
+- Credits **carry over** between rounds. There is **no interest system** (Decided).
+- Income grows with the round number (Decided). Draft: `12 + 6 * round`.
+- Marketing adds income (Sponsor, Scouts, Brand each in their own way).
+- **Price = tier price x archetype factor** (Decided structure).
+  - Tier price grows linearly (Draft: `10 * tier`).
+  - Archetype factor is roughly 0.8 to 1.3, set by balance. A strong tier Y archetype may cost as much as or more than a weaker tier Y+1 part.
+  - An upgrade costs a fraction of the function's own tier price, rising with each level (Draft: 40%, 60%, 80%), and always less than buying the next tier.
+- The intended feel: in later rounds the newest tier is often out of reach, and players make several smaller purchases (older tiers, upgrades) instead of one big one.
+- No losing compensation (Decided).
+
+## 8. Shop
+
+- Offers are a **random draw** from all slots (Decided). Draft: 5 offers per shop.
+- Each offer first picks a tier, then a slot and archetype at random.
+- **Tier weights use a soft fade** (Decided, Draft numbers): weight = `d ^ age`, where age is the rounds since the tier unlocked and **d = 0.7**. A tier never reaches zero chance, so an old tier can appear now and then even late (about 1 shop in 10 at round 9 for tier 1).
+- **Shop quality Q** multiplies each tier's weight by `(1 + Q) ^ tier`, tilting offers toward higher tiers. Q comes from Marketing (Brand) and possibly Design. With no investment, the base table applies.
+- **Scouts** marketing gives a number of rerolls equal to its tier (the only reroll in the game).
+- No generic reroll system (Decided).
+
+Draft tier mix at d = 0.7 and Q = 0:
+
+| Round | Mix |
+|-------|-----|
+| 1 | tier 1: 100% |
+| 3 | tier 1: 22%, tier 2: 32%, tier 3: 46% |
+| 6 | tier 1: 6%, tier 2: 8%, tier 3: 12%, tier 4: 17%, tier 5: 24%, tier 6: 34% |
+
+## 9. Scoring and Elimination (Decided)
+
+- Each round is **one race against a field of several cars** (about 4-6, **Open**: exact field size).
+- Every finishing position earns points, so the player is rewarded without winning. Draft: F1-style points (25, 18, 15, 12, ...).
+- Points are multiplied by a **round weight**: later rounds are worth more. Draft: gentle linear, from 1.0 in round 1 to about 2.0 in the last round.
+- Standings are by cumulative points.
+- **Checkpoint elimination:** after rounds 3, 6, 9 (every 3 rounds), the **last-place car is disqualified**. If it is the player, the run ends and a new run starts from scratch.
+- Persistent builds mean skipping purchases costs points in every later round, which discourages hoarding without any interest system.
+
+## 10. Opponents: Bots and Snapshot Library
+
+- A **snapshot library** of full careers (the build at each round, recorded for the whole run) fills the field. Real player snapshots can be added later.
+- Bots are needed at friend scale. They **play the real game**: real shop, real random draws, so they only own builds a player could own.
+- Bot buying policy (Draft): score each offer (power gained per credit), then pick with randomness. One skill value controls the noise, so the library holds strong, average and weak cars.
+- A few bot personalities: engine rusher, balanced, saver, gambler (overpowers tires).
+- Bots are deliberately imperfect, and pilot rolls and blowouts keep even strong bots beatable, so players are not forced into a single best build.
+- Bot results will also be used to calibrate thresholds, prices and upgrade strength, and to detect dominant archetypes before any playtest.
+
+### Game modes (Open)
+
+Two formats share the same career data and differ only in sampling:
+- **Championship:** pick the field once at the start of the run; it shrinks with each checkpoint elimination.
+- **World Tour:** a fresh field sampled each round.
+
+Plan: build Championship first, add World Tour as a switch later.
+
+## 11. Meta-progression (Decided, simple)
+
+A **statistics history**, no ELO: highest score reached, highest round reached, full championship wins, average race placement, average championship placement, and similar counters.
+
+Optional (**Open**): an eliminated run banks its score on a personal leaderboard.
+
+## 12. Technical Notes
+
+- Repository: `autobattlerv0` on GitHub; the VM pulls once a minute and serves the page publicly (pipeline working).
+- Keep the game engine (functions, race simulation, shop draw, bot policy) as plain code separate from the UI, so bot simulations can run in a sandbox.
+- Visualization of the race (**Open**): something better than car icons moving on a map; a threshold race fits a progress-to-finish display.
+
+## 13. Open Questions
+
+1. Number of rounds per run, and the highest tier to implement for the first playable.
+2. Tier exponent ladder beyond tier 3.
+3. Exact formulas per archetype.
+4. Blowout duration (whole race or a few steps) and exact chance curve.
+5. Field size, and the points scale per finishing position.
+6. Shop size (5 offers is a placeholder).
+7. Championship vs World Tour: what ships first.
+8. Race visualization.
+
+## 14. Ideas Backlog (not decided; more thematic hooks like the tire gamble)
+
+- **Engine overheating:** very high output builds slowly lose output over a long race unless the design slot cools it.
+- **Fuel strategy:** a pilot or design archetype with a big early boost that fades, versus a steady one.
+- **Pit stop:** a once-per-race option that skips a step to remove tire damage.
+- **Weather:** a per-round condition that favors certain archetypes (wet races favor Reinforced tires), so players read the conditions before buying.
+- **Qualifying:** a short pre-race that decides tie-breaks or a small head start.
+
+Only add these after the core loop is playable.
+
+## 15. Suggested Build Order
+
+1. Engine code: functions, tiers, archetype table, race simulation (no UI).
+2. Bot policy and career recording; run bulk simulations to calibrate thresholds, prices and upgrade strength.
+3. Shop and run loop with a minimal phone-friendly UI.
+4. Championship mode, scoring and elimination.
+5. Statistics history, then World Tour.
