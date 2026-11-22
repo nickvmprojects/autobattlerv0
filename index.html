@@ -1,1 +1,279 @@
-<h1>Hello from Nick VM, now with autoupdate</h1>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Racing Auto Battler</title>
+<style>
+  :root { --bg:#0e1116; --panel:#171c24; --line:#2a323f; --text:#e6edf3; --dim:#8b97a7; --acc:#ffb000; --good:#3fb950; --warn:#f0c000; --orange:#ff7b2e; --bad:#f85149; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #app { max-width:480px; margin:0 auto; padding:14px 14px 40px; }
+  h1 { font-size:22px; margin:6px 0 4px; color:var(--acc); }
+  h2 { font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:20px 0 8px; }
+  p { margin:6px 0; }
+  .dim { color:var(--dim); }
+  .top { display:flex; justify-content:space-between; align-items:baseline; font-size:16px; }
+  .bar { display:flex; justify-content:space-between; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; }
+  .bar b { color:var(--acc); }
+  .msg { background:#1f2a1c; border:1px solid #2f5a2b; border-radius:8px; padding:8px 10px; margin:8px 0; color:#b6e3b0; }
+  .msg.err { background:#2a1c1c; border-color:#5a2b2b; color:#f0b6b6; }
+  button { font:inherit; color:var(--text); background:#242c38; border:1px solid var(--line); border-radius:8px; padding:10px 14px; min-height:44px; cursor:pointer; }
+  button:active { background:#2f3947; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.big { width:100%; background:var(--acc); color:#1a1200; border-color:var(--acc); font-weight:700; font-size:16px; margin:12px 0; }
+  button.go { background:var(--good); color:#04200a; border-color:var(--good); font-weight:700; }
+  .row { display:flex; gap:8px; margin:10px 0; }
+  .row button { flex:1; }
+  .slot { border-bottom:1px solid var(--line); padding:7px 0; }
+  .slot .sn { color:var(--dim); font-size:12px; text-transform:uppercase; display:block; }
+  .slot .pn { font-weight:700; }
+  .d { color:var(--dim); font-size:13px; }
+  .star { color:var(--acc); }
+  .offer { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; margin:10px 0; }
+  .offer .oh { display:flex; justify-content:space-between; align-items:baseline; }
+  .offer .oh i { color:var(--dim); font-size:12px; font-style:normal; text-transform:uppercase; }
+  .tag { font-size:12px; margin:6px 0; }
+  .tag.up { color:var(--good); font-weight:700; }
+  .tag.rep { color:var(--dim); }
+  .offer button { width:100%; }
+  pre { margin:8px 0; font:inherit; white-space:pre; overflow-x:auto; }
+  #track { font-size:14px; line-height:1.15; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 6px; text-align:center; display:block; }
+  #live { font-size:12.5px; line-height:1.45; }
+  .c { font-weight:700; }
+  .c.me { color:#04200a; background:var(--good); }
+  .c.s1 { color:var(--warn); }
+  .c.s2 { color:var(--orange); }
+  .c.s3 { color:var(--bad); }
+  .c.me.s1, .c.me.s2, .c.me.s3 { background:var(--good); color:#000; }
+  .tk { color:#5b6778; }
+  .fl { color:var(--acc); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  td, th { padding:5px 4px; border-bottom:1px solid var(--line); text-align:left; }
+  td.n, th.n { text-align:right; }
+  tr.you td { color:var(--acc); font-weight:700; }
+  tr.out td { color:var(--dim); text-decoration:line-through; }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:10px 0; }
+  summary { cursor:pointer; color:var(--dim); }
+  .big-result { font-size:18px; margin:10px 0; }
+</style>
+</head>
+<body>
+<div id="app"><p class="dim">Warming up the paddock...</p></div>
+<script src="engine.js"></script>
+<script src="bots.js"></script>
+<script>
+(function () {
+  'use strict';
+  var AB = window.AB, Bots = window.Bots, CFG = AB.CFG;
+  var $ = document.getElementById('app');
+  var lib = null, run = null, report = null, timer = null, track = null;
+  var LIB_SIZE = 80, LIB_SEED = 777;
+
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s.slice(0, n); }
+  function padL(s, n) { s = String(s); while (s.length < n) s = ' ' + s; return s; }
+
+  // ---------- stats (localStorage, may be unavailable) ----------
+  var KEY = 'ab_stats_v1';
+  function defaultStats() { return { runs: 0, wins: 0, bestScore: 0, bestRound: 0, raceN: 0, placeSum: 0, champN: 0, champSum: 0 }; }
+  function loadStats() { try { return Object.assign(defaultStats(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return defaultStats(); } }
+  function saveStats(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+  // ---------- helpers ----------
+  function label(car) { return car.player ? '@' : String(car.id); }
+  function slotRow(p) {
+    return '<div class="slot"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span><span class="pn">' + esc(AB.partName(p)) +
+      '<span class="star">' + AB.stars(p) + '</span></span><div class="d">' + esc(AB.describe(p)) + '</div></div>';
+  }
+  function standingsTable() {
+    var st = AB.standings(run), h = '<table><tr><th>#</th><th>Team</th><th class="n">Pts</th></tr>';
+    st.forEach(function (c, i) {
+      h += '<tr class="' + (c.player ? 'you' : '') + (c.alive ? '' : ' out') + '"><td>' + (i + 1) + '</td><td>' + esc(label(c) + ' ' + c.name) + '</td><td class="n">' + c.points + '</td></tr>';
+    });
+    return h + '</table>';
+  }
+
+  // ---------- start screen ----------
+  function showStart() {
+    var s = loadStats();
+    var avgRace = s.raceN ? (s.placeSum / s.raceN).toFixed(2) : '-', avgChamp = s.champN ? (s.champSum / s.champN).toFixed(2) : '-';
+    $.innerHTML = '<h1>Racing Auto Battler</h1>' +
+      '<p class="dim">Build a racing team out of six math functions, then race 9 rounds against 9 recorded rival cars. The last-placed team is cut after rounds 2, 4, 6 and 8.</p>' +
+      '<button class="big" data-act="new">New Championship</button>' +
+      '<details><summary>How it works</summary>' +
+      '<p>Each round: shop, then race. Every car adds its output each step; first to the finish line total wins.</p>' +
+      '<p><b>Engine</b> makes power, <b>Design</b> multiplies it, <b>Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b>Handling</b> and <b>Pilot</b> shape the dice. <b>Marketing</b> earns credits and rerolls.</p>' +
+      '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars. Anything else replaces the slot.</p>' +
+      '<p>Points: 1st 15, 2nd 8, 3rd 6, 4th 3, 5th 2, then 1, last place 0.</p></details>' +
+      '<h2>Your stats</h2><table>' +
+      '<tr><td>Championships finished</td><td class="n">' + s.runs + '</td></tr>' +
+      '<tr><td>Championship wins</td><td class="n">' + s.wins + '</td></tr>' +
+      '<tr><td>Highest score</td><td class="n">' + s.bestScore + '</td></tr>' +
+      '<tr><td>Highest round reached</td><td class="n">' + s.bestRound + '</td></tr>' +
+      '<tr><td>Avg race placement</td><td class="n">' + avgRace + '</td></tr>' +
+      '<tr><td>Avg championship placement</td><td class="n">' + avgChamp + '</td></tr></table>';
+  }
+
+  // ---------- shop ----------
+  function showShop(msg, isErr) {
+    var T = CFG.thresholds[run.round - 1], alive = run.field.filter(function (c) { return c.alive; }).length;
+    var h = '<div class="top"><b>Round ' + run.round + '/' + CFG.rounds + ' · Shop</b><span class="dim">Finish line ' + T + '</span></div>' +
+      '<div class="bar"><span>Credits <b>' + run.credits + '</b></span><span>Rerolls <b>' + run.rerollsLeft + '</b></span><span>Cars <b>' + alive + '</b></span></div>';
+    if (msg) h += '<div class="msg' + (isErr ? ' err' : '') + '">' + esc(msg) + '</div>';
+    h += '<h2>Your car</h2>';
+    AB.SLOTS.forEach(function (s) { h += slotRow(run.build[s]); });
+    h += '<h2>Shop offers</h2>';
+    if (!run.offers.length) h += '<p class="dim">Sold out. Reroll for new offers or head to the race.</p>';
+    run.offers.forEach(function (off, i) {
+      var k = AB.classify(run.build, off), own = run.build[off.s], shown, tag;
+      if (k.kind === 'upgrade') { shown = AB.applyPurchase(run.build, off)[off.s]; tag = '<div class="tag up">UPGRADE → ' + '★'.repeat(shown.u) + '</div>'; }
+      else { shown = { s: off.s, a: off.a, t: off.t, u: 0 }; tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'MAXED OUT' : 'replaces ' + esc(AB.partName(own)) + AB.stars(own)) + '</div>'; }
+      var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
+      h += '<div class="offer"><div class="oh"><b>' + esc(AB.partName(shown)) + '<span class="star">' + AB.stars(shown) + '</span></b><i>' + AB.SLOT_NAME[off.s] + '</i></div>' +
+        '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
+        '<button data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
+    });
+    h += '<div class="row"><button data-act="reroll"' + (run.rerollsLeft > 0 ? '' : ' disabled') + '>Reroll (' + run.rerollsLeft + ')</button>' +
+      '<button class="go" data-act="race">Race! ▶</button></div>' +
+      '<details><summary>Championship standings</summary>' + standingsTable() + '</details>';
+    $.innerHTML = h;
+  }
+
+  // ---------- race view ----------
+  function makeTrack() {
+    var W = 33, H = 9, cx = 16, cy = 4, rx = 15.4, ry = 4.2, cells = [], steps = 720;
+    for (var i = 0; i <= steps; i++) {
+      var a = Math.PI / 2 + 2 * Math.PI * i / steps;
+      var c = Math.round(cx + rx * Math.cos(a)), r = Math.round(cy + ry * Math.sin(a)), k = r * W + c;
+      if (cells.length && cells[cells.length - 1][2] === k) continue;
+      cells.push([c, r, k]);
+    }
+    if (cells.length > 1 && cells[cells.length - 1][2] === cells[0][2]) cells.pop();
+    return { W: W, H: H, cells: cells };
+  }
+  function trackHTML(rows, T, f) {
+    var N = track.cells.length, W = track.W, H = track.H, grid = [], i, j;
+    for (i = 0; i < H * W; i++) grid.push(' ');
+    track.cells.forEach(function (c, n) { grid[c[2]] = n === 0 ? '<span class="fl">|</span>' : '<span class="tk">.</span>'; });
+    var s = Math.floor(f / 3), fr = (f % 3) / 3, items = [];
+    rows.forEach(function (row) {
+      var r = row.res, tt = r.totals, L = tt.length - 1;
+      var a = tt[Math.min(s, L)], b = tt[Math.min(s + 1, L)], tot = a + (b - a) * fr, p = Math.min(1, tot / T);
+      var code = r.st[Math.min(s, L)];
+      items.push({ p: p, idx: Math.min(N - 1, Math.floor(p * N)), code: code, me: row.car.player, ch: label(row.car), crashed: r.status === 'crash' && s >= L });
+    });
+    items.sort(function (x, y) { return (x.crashed ? -1 : 0) - (y.crashed ? -1 : 0) || x.p - y.p || (x.me ? 1 : 0) - (y.me ? 1 : 0); });
+    items.forEach(function (it) {
+      var cell = track.cells[it.idx], cls = 'c' + (it.me ? ' me' : '') + (it.code ? ' s' + it.code : '');
+      grid[cell[2]] = '<span class="' + cls + '">' + (it.crashed ? 'X' : esc(it.ch)) + '</span>';
+    });
+    var out = '';
+    for (i = 0; i < H; i++) { out += grid.slice(i * W, (i + 1) * W).join('') + (i < H - 1 ? '\n' : ''); }
+    return out;
+  }
+  function liveHTML(rows, T, f) {
+    var s = Math.floor(f / 3), fr = (f % 3) / 3, list = rows.map(function (row) {
+      var r = row.res, tt = r.totals, L = tt.length - 1;
+      var a = tt[Math.min(s, L)], b = tt[Math.min(s + 1, L)], tot = a + (b - a) * fr, p = Math.min(1, tot / T);
+      var code = r.st[Math.min(s, L)], mark = '';
+      if (r.status === 'fin' && s >= L) mark = '✓'; else if (r.status === 'crash' && s >= L) mark = 'X'; else if (code === 1) mark = '~'; else if (code === 2) mark = '!';
+      return { row: row, p: p, mark: mark, fin: r.status === 'fin' && s >= L };
+    });
+    list.sort(function (x, y) { return (y.fin ? 1 : 0) - (x.fin ? 1 : 0) || (x.fin && y.fin ? x.row.pos - y.row.pos : y.p - x.p); });
+    return list.map(function (it, i) {
+      var me = it.row.car.player;
+      return padL(i + 1, 2) + '. ' + esc(label(it.row.car)) + ' ' + esc(pad(it.row.car.name, 18)) + padL(Math.round(it.p * 100), 3) + '% ' + it.mark;
+    }).join('\n');
+  }
+  function resultsHTML(rep) {
+    var rows = rep.rows.slice().sort(function (a, b) { return a.pos - b.pos; });
+    var h = '<h2>Result</h2><table><tr><th>#</th><th>Team</th><th>Result</th><th class="n">Pts</th></tr>';
+    rows.forEach(function (r) {
+      var res = r.res, txt = res.status === 'fin' ? 'x ' + res.x.toFixed(1) : res.status === 'crash' ? 'CRASH x' + res.x : 'cap';
+      h += '<tr class="' + (r.car.player ? 'you' : '') + '"><td>' + r.pos + '</td><td>' + esc(label(r.car) + ' ' + r.car.name) + '</td><td>' + txt + '</td><td class="n">' + r.pts + '</td></tr>';
+    });
+    h += '</table>';
+    var me = rep.rows[0], ev = {};
+    me.res.events.forEach(function (e) { ev[e.type] = (ev[e.type] || 0) + 1; });
+    var evs = Object.keys(ev).map(function (k) { return ev[k] + ' ' + k + (ev[k] > 1 && k !== 'crash' ? 's' : ''); });
+    h += '<p class="dim">Your pilot rolled ' + Math.round(me.res.roll * 100) + '%. ' + (evs.length ? 'Events: ' + evs.join(', ') + '.' : 'No tire events.') + '</p>';
+    if (rep.eliminated) h += '<div class="msg' + (rep.eliminated.player ? ' err' : '') + '">' + (rep.eliminated.player ? 'You finished last in the standings and are eliminated.' : esc(rep.eliminated.name) + ' is eliminated.') + '</div>';
+    h += '<h2>Championship standings</h2>' + standingsTable();
+    var btn = run.phase === 'dead' ? 'See result' : run.phase === 'finished' ? 'Finish championship' : 'Next: round ' + (run.round + 1) + ' shop';
+    h += '<button class="big" data-act="after">' + btn + '</button>';
+    return h;
+  }
+  function showRace(rep) {
+    if (!track) track = makeTrack();
+    var rows = rep.rows, maxL = 0;
+    rows.forEach(function (r) { maxL = Math.max(maxL, r.res.totals.length - 1); });
+    var last = maxL * 3, f = 0;
+    $.innerHTML = '<div class="top"><b>Round ' + rep.round + ' · Race</b><span class="dim">Finish line ' + rep.T + '</span></div>' +
+      '<pre id="track"></pre><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
+      '<p class="dim">@ is you. ~ puncture, ! blowout, X crash, ✓ finished.</p>';
+    var tEl = document.getElementById('track'), lEl = document.getElementById('live');
+    function draw() { tEl.innerHTML = trackHTML(rows, rep.T, f); lEl.innerHTML = liveHTML(rows, rep.T, f); }
+    function finish() {
+      clearInterval(timer); timer = null; f = last; draw();
+      document.getElementById('ctl').style.display = 'none';
+      document.getElementById('after').innerHTML = resultsHTML(rep);
+    }
+    showRace.skip = finish;
+    draw();
+    timer = setInterval(function () { f++; if (f >= last) finish(); else draw(); }, 90);
+  }
+
+  // ---------- end of run ----------
+  function finishRun() {
+    if (run.statsDone) return; run.statsDone = true;
+    var s = loadStats(), me = run.field[0];
+    s.runs++; s.champN++; s.champSum += run.finalRank;
+    if (run.phase === 'finished' && run.finalRank === 1) s.wins++;
+    s.bestScore = Math.max(s.bestScore, me.points);
+    s.bestRound = Math.max(s.bestRound, run.history.length);
+    saveStats(s);
+  }
+  function showEnd() {
+    finishRun();
+    var me = run.field[0], won = run.phase === 'finished' && run.finalRank === 1;
+    var h = '<h1>' + (run.phase === 'dead' ? 'Eliminated' : won ? 'Champions!' : 'Championship complete') + '</h1>';
+    h += '<p class="big-result">' + (run.phase === 'dead' ? 'Cut after round ' + run.history.length + ' with ' + me.points + ' points.' : 'Final place: ' + run.finalRank + ' of ' + CFG.fieldSize + ' with ' + me.points + ' points.') + '</p>';
+    h += '<h2>Your races</h2><table><tr><th>Round</th><th>Place</th><th class="n">Pts</th></tr>';
+    run.history.forEach(function (r) { h += '<tr><td>' + r.round + '</td><td>' + r.pos + (r.status === 'crash' ? ' (crash)' : '') + '</td><td class="n">' + r.pts + '</td></tr>'; });
+    h += '</table><h2>Final standings</h2>' + standingsTable();
+    h += '<h2>Your final car</h2>';
+    AB.SLOTS.forEach(function (s) { h += slotRow(run.build[s]); });
+    h += '<button class="big" data-act="new">New Championship</button><button data-act="home" style="width:100%">Stats</button>';
+    $.innerHTML = h;
+  }
+
+  // ---------- actions ----------
+  var actions = {
+    new: function () { run = AB.newChampionship((Date.now() % 1000000007) | 0, lib); showShop(); window.scrollTo(0, 0); },
+    home: showStart,
+    buy: function (d) {
+      var i = +d.i, off = run.offers[i], name = off ? AB.partName(off) : '', r = AB.buy(run, i);
+      if (r.ok) showShop((r.kind === 'upgrade' ? 'Upgraded ' : 'Bought ') + name + ' for ' + r.cost + ' cr.');
+      else showShop(r.why, true);
+    },
+    reroll: function () { if (AB.reroll(run)) showShop('Offers rerolled.'); },
+    race: function () { report = AB.race(run); var s = loadStats(); s.raceN++; s.placeSum += report.playerPos; saveStats(s); showRace(report); window.scrollTo(0, 0); },
+    skip: function () { if (showRace.skip) showRace.skip(); },
+    after: function () {
+      if (run.phase === 'dead' || run.phase === 'finished') showEnd();
+      else { AB.next(run); showShop(); }
+      window.scrollTo(0, 0);
+    }
+  };
+  $.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b || b.disabled) return;
+    actions[b.getAttribute('data-act')]({ i: b.getAttribute('data-i') });
+  });
+
+  setTimeout(function () { lib = Bots.buildLibrary(LIB_SIZE, LIB_SEED); showStart(); }, 30);
+})();
+</script>
+</body>
+</html>
