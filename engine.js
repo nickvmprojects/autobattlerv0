@@ -20,6 +20,8 @@
     mktBase: 2, sponsorBonus: 5, brandPrize: 0.25, botExpectedPts: 10,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
+    designPower: 1,                  // Design adds this share of its bonus as power, and its full bonus as top speed
+    stockTireLimit: 50, tirePriceStep: 0.1, handlingPrice: 0.85, // tires cost +10% per tier above T1, handling parts 15% less
     tierPrices: [0, 10, 22, 38, 55], /* part price by tier (x archetype factor) */ upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
     // Upgrade multiplier per tier (index = tier, then stars 0..3): cheap tiers gain less, so a 3-star T1 can't outrun a T4.
     upgradeMult: [[1, 1, 1, 1], [1, 1.3, 1.6, 2.0], [1, 1.4, 2.0, 3.0], [1, 1.5, 2.3, 3.5], [1, 1.5, 2.5, 4.0]],
@@ -31,35 +33,41 @@
     pilotGrow: 0.06, pilotGrowCap: 1.5,      // pilot buffs grow with experience
     fade: 0.7,
     ramp: [0.08, 0.12, 0.16, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45], // weight of a new tier by age (rounds since unlock)
-    rdBias: 0.25, softBase: 0.04,
+    rdBias: 0.25, softBase: 0.05,
     expo: [1, 2.0, 2.2, 2.5, 2.8],
-    design: [0, 0.25, 0.35, 0.50, 0.70],
+    design: [0, 0.30, 0.45, 0.65, 0.90],  // Design bonus: added to power and to top speed
     pilot: [[0.3, 0.3], [0.2, 0.5], [0.1, 0.7], [0.05, 0.8], [0, 0.9], [0, 1.0]],
     pilotSpread: 1,                // multiplies the half-width of every pilot range (1 = design doc, 0 = no randomness)
     // Tire trouble now costs momentum (the engine's x) instead of cutting output:
     // a puncture keeps this share of x, a blowout is a pit stop (x back to 1, fresh tires, wear back to 0).
-    punctureKeep: 0.5, pitKeep: 0.3, reinforcedKeep: 0.25, // Reinforced tires keep some momentum through a pit stop
+    punctureKeep: 0.65, pitKeep: 0.45, reinforcedKeep: 0.25, // Reinforced tires keep some momentum through a pit stop
     // Tire wear meter: wear += k * stress^p * wearMul, stress = engine load / tire limit.
     // Crossing a mark forces one hidden check (chance, then severity mix [puncture, blowout, crash]).
     wear: { k: 36, p: 1.5, marks: [20, 40, 60, 80], chances: [0.30, 0.40, 0.50, 0.60],
       // severity [puncture, blowout, spun around, crash]: crashes come mostly from overheated tires
       mixes: [[0.70, 0.12, 0.18, 0], [0.50, 0.25, 0.25, 0], [0.38, 0.30, 0.32, 0], [0.28, 0.30, 0.39, 0.03]],
       over: 0.30, overMix: [0.15, 0.40, 0.35, 0.10] },
-    thresholds: [33, 51, 73, 107, 150, 225, 305, 450, 630],
+    thresholds: [37, 55, 85, 130, 190, 285, 400, 585, 860],
     tradeIn: 0.5,                  // share of what you paid that comes back when a purchase replaces a part
     // Top speed per round (soft cap: weak cars barely notice it, strong cars level off near it). capK = sharpness.
     // Handling events: each step the car is steady, shaky or out of control. stress = raw speed / (top speed * grip).
     // Shaky: top speed x shakyCap, half acceleration, tire wear x shakyWear. Out of control: same plus a crash chance.
-    handling: { minVmax: 10, grip: 0.55, perTier: 0.12, groundGrip: 0.15, shakyAt: 0.85, shakyK: 2, shakyMax: 0.6, outAt: 1.05, outK: 1.5, outMax: 0.3,
-      shakyCap: 0.85, shakyWear: 1.3, outCrash: 0.06 },
+    handling: { minVmax: 10, grip: 0.40, perTier: 0.18, groundGrip: 0.15, shakyAt: 0.85, shakyK: 2, shakyMax: 0.6, outAt: 1.05, outK: 1.5, outMax: 0.3,
+      shakyCap: 0.85, shakyWear: 1.3, outCrash: 0.02 },
     // Marketing roles: Scouts find copies of parts you own, Brand brings fans (pilot floor) and a crowd that cheers harder when you trail.
     scoutFind: [0.12, 0.06, 0.4], brandFans: [0.05, 0.15], brandCrowd: [0.05, 0.15], botBehind: 0.4,
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.9';
+  var VERSION = '0.10';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.10', items: [
+      'Design now raises top speed as well as power, so it matters most late in the championship when cars hit their top speed. Design bonuses are bigger.',
+      'Handling is design’s partner: faster cars need more grip, stock grip is lower, every handling part also makes crashes a bit rarer, and handling parts cost 15% less.',
+      'Tires toned down: sturdier stock tires, tire prices rise 10% per tier, and trouble costs less speed (a puncture keeps 65%, a pit stop restarts from 45%).',
+      'Archetype nudges. Stronger: Turbo (more power, cheaper), R&D, Lightweight, Race setup, Soft tires, Wildcard, Opportunist. Toned down: Sprinter, Aero, Veteran.',
+      'Lap lengths recalibrated. Old saves are discarded.'] },
     { v: '0.9', items: [
       'Team flags: every rival team flies a flag (mostly countries, a few odd ones) that stays with the team. Pick your own flag on the start screen.',
       'Start lights: five red lights, lights out, GO!',
@@ -96,7 +104,7 @@
   var SLOTS = ['engine', 'design', 'tires', 'handling', 'pilot', 'marketing'];
   var SLOT_NAME = { engine: 'Engine', design: 'Design', tires: 'Tires', handling: 'Handling', pilot: 'Pilot', marketing: 'Marketing' };
   var ARCH = {
-    engine: [{ id: 'sprinter', name: 'Sprinter', f: 1.0 }, { id: 'endurance', name: 'Endurance', f: 1.0 }, { id: 'turbo', name: 'Turbo', f: 1.3 }],
+    engine: [{ id: 'sprinter', name: 'Sprinter', f: 1.0 }, { id: 'endurance', name: 'Endurance', f: 1.0 }, { id: 'turbo', name: 'Turbo', f: 1.15 }],
     design: [{ id: 'aero', name: 'Aero', f: 1.1 }, { id: 'ground', name: 'Ground effect', f: 1.2 }, { id: 'light', name: 'Lightweight', f: 0.9 }, { id: 'rnd', name: 'R&D', f: 0.8 }],
     tires: [{ id: 'hard', name: 'Hard compound', f: 1.0 }, { id: 'soft', name: 'Soft compound', f: 0.9 }, { id: 'reinforced', name: 'Reinforced', f: 1.1 }],
     handling: [{ id: 'stabilizer', name: 'Stabilizer', f: 1.0 }, { id: 'traction', name: 'Traction control', f: 1.1 }, { id: 'setup', name: 'Race setup', f: 0.9 }],
@@ -143,9 +151,9 @@
   function engineFn(p) {
     var e = CFG.expo[p.t], m = mult(p) * season(p), l = lv(p);
     switch (p.a) {
-      case 'sprinter': return function (x) { return m * 2.2 * Math.pow(x, e - 0.5 + 0.05 * l); };
+      case 'sprinter': return function (x) { return m * 2.1 * Math.pow(x, e - 0.5 + 0.05 * l); };
       case 'endurance': return function (x) { return m * 0.7 * Math.pow(x, e + 0.4) * (1 + 0.25 * l * Math.max(0, 1 - x / 12)); };
-      case 'turbo': return function (x) { return m * 1.25 * Math.pow(x, e); };
+      case 'turbo': return function (x) { return m * 1.35 * Math.pow(x, e); };
       default: return function (x) { return 3 * x; };
     }
   }
@@ -154,9 +162,9 @@
     var g = designGain(p), l = lv(p);
     switch (p.a) {
       case 'ground': return function () { return g; };
-      case 'aero': return function (x) { return g * Math.min(2.0, 0.4 + 0.1 * l + 0.12 * x); };
-      case 'light': return function () { return 0.7 * g; };
-      case 'rnd': return function () { return (0.6 + 0.1 * l) * g; };
+      case 'aero': return function (x) { return g * Math.min(1.4, 0.3 + 0.1 * l + 0.1 * x); };
+      case 'light': return function () { return 0.85 * g; };
+      case 'rnd': return function () { return (0.8 + 0.1 * l) * g; };
       default: return function () { return 0; };
     }
   }
@@ -168,11 +176,11 @@
     return f;
   }
   function tireInfo(p) {
-    var info = { limit: 40, bonus: 1, keep: CFG.pitKeep, noCrash: false, evMul: 1 }, l = lv(p);
+    var info = { limit: CFG.stockTireLimit, bonus: 1, keep: CFG.pitKeep, noCrash: false, evMul: 1 }, l = lv(p);
     if (p.t === 0) return info;
     var lim = 1.1 * Math.pow(10, CFG.expo[p.t]) * mult(p) * season(p);
     if (p.a === 'hard') info.evMul = Math.max(0.6, 1 - 0.08 * l);
-    if (p.a === 'soft') { lim *= 0.8; info.bonus = 1 + CFG.softBase + 0.03 * l; }
+    if (p.a === 'soft') { lim *= 0.85; info.bonus = 1 + CFG.softBase + 0.03 * l; }
     if (p.a === 'reinforced') { lim *= 0.8; info.noCrash = true; info.keep = Math.min(0.7, CFG.pitKeep + CFG.reinforcedKeep + 0.08 * l); }
     info.limit = lim;
     return info;
@@ -181,10 +189,11 @@
     var h = { floor: 0, top: 0, evMul: 1, crashMul: 1, grip: 0, shakyWear: 1 };
     if (p.t === 0) return h;
     var e = effTier(p) * season(p), l = lv(p);
-    var G = CFG.handling.perTier * e;
+    var G = CFG.handling.perTier * e, safe = Math.max(0.7, 1 - 0.04 * e); // every handling part also makes crashes a bit rarer
     if (p.a === 'stabilizer') { h.grip = 1.2 * G; h.floor = Math.min(0.25, 0.04 * e); h.crashMul = Math.max(0.2, 1 - 0.08 * e); h.evMul = Math.max(0.7, 1 - 0.05 * l); }
     if (p.a === 'traction') { h.grip = G; h.shakyWear = 1; h.evMul = Math.max(0.25, 1 - 0.12 * e); h.floor = Math.min(0.08, 0.02 * l); }
-    if (p.a === 'setup') { h.grip = 0.7 * G; h.top = Math.min(0.25, 0.05 * e); h.crashMul = Math.max(0.6, 1 - 0.08 * l); }
+    if (p.a === 'setup') { h.grip = 1.1 * G; h.top = Math.min(0.28, 0.06 * e); h.crashMul = Math.max(0.6, 1 - 0.08 * l); }
+    h.crashMul *= safe;
     return h;
   }
   function pilotRange(p) {
@@ -203,18 +212,18 @@
     if (p.t > 0) {
       var L = pilotLv(p);
       if (p.a === 'veteran') {
-        var mid = (lo + hi) / 2 + 0.03, half = (hi - lo) / 2 * 0.4; lo = mid - half + 0.03 * L.u; hi = mid + half;
+        var mid = (lo + hi) / 2 + 0.01, half = (hi - lo) / 2 * 0.4; lo = mid - half + 0.03 * L.u; hi = mid + half;
         var wv = Math.max(0.5, (1 - 0.05 * L.b) * (1 - 0.04 * L.u));
         info.wear = function () { return wv; };
-        info.crashMul = 0.7 * Math.max(0.3, 1 - 0.08 * L.b);
+        info.crashMul = 0.8 * Math.max(0.3, 1 - 0.08 * L.b);
       } else if (p.a === 'wildcard') {
-        hi += 0.10 + 0.02 * L.u;
-        info.crashMul = Math.max(1.0, 1.3 - 0.08 * L.u);
+        hi += 0.14 + 0.02 * L.u;
+        info.crashMul = Math.max(1.0, 1.1 - 0.08 * L.u);
         var pw = 1 + 0.05 * L.b;
         info.pow = function () { return pw; };
         info.wear = function () { return pw; };
       } else if (p.a === 'opportunist') {
-        var start = Math.min(0.9, 0.7 + 0.08 * L.u), early = 1 - 0.10 * L.b, late = 1 + 0.03 * L.u;
+        var start = Math.min(0.9, 0.75 + 0.08 * L.u), early = 1 - 0.10 * L.b, late = 1 + 0.03 * L.u;
         info.pow = function (x) { return Math.min(1.3, start + 0.06 * x) * (x >= 6 ? late : 1); };
         info.wear = function (x) { return x <= 5 ? early : 1; };
       }
@@ -281,14 +290,15 @@
     }
     for (var x = 1; x <= cap; x++) {
       xe++;
-      var eng = car.engine(xe), crashNow = false, spin = false, w0 = wear, hState = 0, vmx = vm;
+      var eng = car.engine(xe), crashNow = false, spin = false, w0 = wear, hState = 0, shakyNow = false;
       // handling: how hard is the car pushing against its top speed, given its grip?
       if (vm >= H.minVmax && !opts.noEvents) { // round 1 is a warm-up: no handling events
-        var stress = capSpeed(eng * boost * (1 + car.design(xe)) * car.pilotStep(xe), vm) / vm / car.grip; // share of top speed, per unit of grip
+        var dTop = vm * (1 + car.design(xe)); // design raises top speed
+        var stress = capSpeed(eng * boost * car.pilotStep(xe) * (1 + CFG.designPower * car.design(xe)), dTop) / vm / car.grip; // speed vs the round's base top speed, per unit of grip
         var pOut = clamp(H.outK * (stress - H.outAt), 0, H.outMax), pSh = clamp(H.shakyK * (stress - H.shakyAt), 0, H.shakyMax), hu = rng();
         hState = hu < pOut ? 2 : hu < pOut + pSh ? 1 : 0;
         if (hState) {
-          xe -= 0.5; eng = car.engine(xe); vmx = vm * H.shakyCap;  // half acceleration, lower top speed
+          xe -= 0.5; eng = car.engine(xe); shakyNow = true;  // half acceleration, lower top speed
           if (hState === 1) shaky++; else wild++;
           if (hState === 2 && rng() < H.outCrash * car.crashMul) spin = true;
         }
@@ -315,7 +325,8 @@
       }
       var code = show > 0 ? showCode : 0;
       if (show > 0) show--;
-      var out = capSpeed(car.engine(xe) * boost * (1 + car.design(xe)) * car.pilotStep(xe), vmx);
+      var top = vm ? vm * (1 + car.design(xe)) * (shakyNow ? H.shakyCap : 1) : 0; // Design raises top speed (no cap: it multiplies power)
+      var out = top ? capSpeed(car.engine(xe) * boost * car.pilotStep(xe) * (1 + CFG.designPower * car.design(xe)), top) : car.engine(xe) * boost * (1 + car.design(xe)) * car.pilotStep(xe);
       if (back) { out = -Math.min(tot, CFG.spunBack * out); xe = Math.max(1, Math.round(xe * CFG.spunKeep)); back = false; } // spun around: drives backwards for a step
       if (tot + out >= T) { // finish is checked before a crash on the same step
         var fr = (T - tot) / out;
@@ -396,7 +407,7 @@
   function shopQuality(build) { return marketingOf(build).q; }
   function rerollsOf(build) { return marketingOf(build).rerolls; }
 
-  function price(offer) { return Math.round(CFG.tierPrices[offer.t] * archInfo(offer.s, offer.a).f); }
+  function price(offer) { return Math.round(CFG.tierPrices[offer.t] * archInfo(offer.s, offer.a).f * (offer.s === 'tires' ? 1 + CFG.tirePriceStep * (offer.t - 1) : offer.s === 'handling' ? CFG.handlingPrice : 1)); }
   // What buying this offer would do to this build.
   function classify(build, offer) {
     var own = build[offer.s];
@@ -653,10 +664,10 @@
       case 'design': {
         var g = designGain(p);
         if (p.t === 0) return 'no bonus';
-        if (p.a === 'ground') return '+' + pc(g) + ' power, grip +' + pc(CFG.handling.groundGrip * ts(p) * mult(p)) + ', load ×' + fmt(Math.max(0.85, 1 - 0.03 * l)) + ' vs tires';
-        if (p.a === 'aero') return '+' + pc(g * (0.4 + 0.1 * l + 0.12)) + ' rising to +' + pc(g * 2) + ' power';
-        if (p.a === 'light') return '+' + pc(0.7 * g) + ' power, load ×' + fmt(Math.max(0.7, 0.85 - 0.04 * l)) + ' vs tires';
-        return '+' + pc((0.6 + 0.1 * l) * g) + ' power, more upgrade offers (+' + pc(CFG.rdBias * l) + ')';
+        if (p.a === 'ground') return '+' + pc(g) + ' power and top speed, grip +' + pc(CFG.handling.groundGrip * ts(p) * mult(p)) + ', load ×' + fmt(Math.max(0.85, 1 - 0.03 * l)) + ' vs tires';
+        if (p.a === 'aero') return '+' + pc(g * (0.4 + 0.1 * l)) + ' rising to +' + pc(g * 1.4) + ' power and top speed';
+        if (p.a === 'light') return '+' + pc(0.85 * g) + ' power and top speed, load ×' + fmt(Math.max(0.7, 0.85 - 0.04 * l)) + ' vs tires';
+        return '+' + pc((0.8 + 0.1 * l) * g) + ' power and top speed, more upgrade offers (+' + pc(CFG.rdBias * l) + ')';
       }
       case 'tires': {
         var t = tireInfo(p), s = 'limit ' + Math.round(t.limit);
