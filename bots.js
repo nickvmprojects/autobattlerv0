@@ -102,6 +102,7 @@
       var got = botShop(state, r, bot, rng, seed * 31 + r);
       got.forEach(function (g) { if (g.kind === 'upgrade') upgrades++; log.push(g); });
       builds.push(AB.cloneBuild(state.build));
+      AB.bumpExperience(state.build); // the parts race too, so they season
     }
     return { name: name, personality: bot.personality, skill: bot.skill, builds: builds, upgrades: upgrades, log: log };
   }

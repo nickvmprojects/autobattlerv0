@@ -60,6 +60,58 @@ Object.keys(arch).sort().forEach(function (k) {
   var o = arch[k]; console.log('  ' + pad(k, 22) + (o.pos / o.n).toFixed(2) + '  win ' + pct(o.win / o.n) + '  used ' + pct(o.n / (600 * 9 * 10)));
 });
 
+// 2b. Wear, events and suspense (random 10-car fields, full race with events)
+var ev = { cars: 0, anyEv: 0, punct: 0, blow: 0, crash: 0, firstFrac: [], endWear: [], lead: 0, races: 0, winLead60: 0, early: 0, evTotal: 0 };
+var rng2 = AB.mulberry32(4242);
+for (var rep2 = 0; rep2 < 300; rep2++) {
+  for (r = 1; r <= CFG.rounds; r++) {
+    var ix = []; while (ix.length < 10) { var jj = Math.floor(rng2() * lib.length); if (ix.indexOf(jj) < 0) ix.push(jj); }
+    var T2 = CFG.thresholds[r - 1];
+    var cars = ix.map(function (j) { return AB.prepareCar(lib[j].builds[r - 1]); });
+    var res2 = cars.map(function (c) { return AB.runCar(c, T2, rng2); });
+    var fld = AB.raceField(ix.map(function (j) { return lib[j].builds[r - 1]; }), T2, AB.mulberry32(rep2 * 31 + r));
+    res2 = fld.results;
+    res2.forEach(function (R) {
+      ev.cars++; var has = R.events.length > 0; if (has) ev.anyEv++;
+      if (R.events.some(function (e) { return e.type === 'puncture'; })) ev.punct++;
+      if (R.events.some(function (e) { return e.type === 'blowout'; })) ev.blow++;
+      if (R.status === 'crash') ev.crash++;
+      var len = R.status === 'fin' ? R.x : R.x;
+      R.events.forEach(function (e) { ev.evTotal++; if (e.x / len <= 0.6) ev.early++; });
+      if (has) ev.firstFrac.push(R.events[0].x / len);
+      ev.endWear.push(R.wear);
+    });
+    // lead changes and "winner leading at 60% of the race", using time fractions on fractional-x progress
+    var winner = fld.order[0], tw = res2[winner].x, steps = Math.floor(tw * 0.6), prog = function (R, xx) { return R.totals && R.totals[Math.min(xx, R.totals.length - 1)]; };
+    ev.races++;
+  }
+}
+console.log('\nWear and events (full races, random fields):');
+console.log('  any event ' + pct(ev.anyEv / ev.cars) + ', puncture ' + pct(ev.punct / ev.cars) + ', blowout ' + pct(ev.blow / ev.cars) + ', crash ' + pct(ev.crash / ev.cars));
+console.log('  median wear at end ' + Math.round(median(ev.endWear)) + '%, median first event at ' + (ev.firstFrac.length ? median(ev.firstFrac).toFixed(2) : '-') + ' of own race, events in first 60%: ' + pct(ev.early / Math.max(1, ev.evTotal)));
+
+// suspense: lead changes and whether the winner led at 60% of the race (full simulated races with step data)
+var lc = 0, wl = 0, nn = 0;
+for (var rp = 0; rp < 200; rp++) {
+  for (r = 1; r <= CFG.rounds; r++) {
+    var ix2 = []; while (ix2.length < 10) { var j3 = Math.floor(rng2() * lib.length); if (ix2.indexOf(j3) < 0) ix2.push(j3); }
+    var T3 = CFG.thresholds[r - 1], rr = ix2.map(function (j) { return AB.runCar(AB.prepareCar(lib[j].builds[r - 1]), T3, rng2); });
+    var fx = rr.map(function (R, i) { return i; }).sort(function (a, b) { var A = rr[a], B = rr[b]; if (A.status === 'fin' && B.status === 'fin') return A.x - B.x; if (A.status === 'fin') return -1; if (B.status === 'fin') return 1; return B.total - A.total; });
+    var win = rr[fx[0]], tEnd = win.x, last = -1, changes = 0, at60 = -1;
+    for (var tt = 0.02; tt <= 1.0001; tt += 0.02) {
+      var xt = tEnd * tt, best = -1, bv = -1;
+      rr.forEach(function (R, i) {
+        var k0 = Math.min(Math.floor(xt), R.totals.length - 1), k1 = Math.min(k0 + 1, R.totals.length - 1), v = R.totals[k0] + (R.totals[k1] - R.totals[k0]) * (xt - k0);
+        if (v > bv) { bv = v; best = i; }
+      });
+      if (last >= 0 && best !== last) changes++;
+      last = best; if (tt >= 0.595 && at60 < 0) at60 = best;
+    }
+    lc += changes; nn++; if (at60 === fx[0]) wl++;
+  }
+}
+console.log('  lead changes per race ' + (lc / nn).toFixed(2) + ', winner leading at 60% of the race ' + pct(wl / nn));
+
 // 3. Upgrade rarity and economy
 var ups = lib.map(function (c) { var s = 0; AB.SLOTS.forEach(function (sl) { s += c.builds[8][sl].u; }); return s; });
 var maxed = lib.filter(function (c) { return AB.SLOTS.some(function (sl) { return c.builds[8][sl].u === 3; }); }).length;
