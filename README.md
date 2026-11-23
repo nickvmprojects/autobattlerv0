@@ -2,7 +2,14 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.12c)
+## Changes in this version (v0.13)
+
+- Race screen: sticky top (header, one-line announcer bar, circuit, effect chips), then titled blocks: Your car, Live racer view, Timing tower (top 5 + you, Show all). Speed 1x/2x.
+- Announcer queue: each line holds 2.2 s; calls have priority (must-hear: intro, start, lead, crash, spin, last lap, win, your own events; about you; small talk) and expire after 5 / 2.5 / 1.5 race steps. About 7-8 of 20-30 calls get read per race; the full list stays after the race.
+- Track effects in the race: chips, weather overlays per circuit (`weather()`), circuit quips (`CQUIP`), intro line lists the effects.
+- Shop buy buttons: orange outline instead of red fill.
+
+## Previous version (v0.12c)
 
 - Rival portraits: 14 original anime racer girls drawn as SVG in index.html (`PORTRAITS`, `portrait(preset, teamColor, expr)`), styles 80s / 90s / 00s / doujin-shooter / chibi / plush / gritty, moods smug, angry, crazy, happy, determined, gritty, bored, sleepy. Each team keeps its racer (picked from its name, unique within a field). Shown in the timing tower, results, standings and next to announcer calls. `expr` can be overridden later for reactions.
 
