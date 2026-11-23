@@ -16,12 +16,12 @@ for (var r = 1; r <= CFG.rounds; r++) {
   var tots = [];
   lib.forEach(function (c, i) {
     for (var k = 0; k < 4; k++) {
-      tots.push(AB.runCar(AB.prepareCar(c.builds[r - 1]), Infinity, AB.mulberry32(i * 97 + k * 13 + r), { lite: true, cap: 10, vmax: AB.vmaxOf(r) }).total);
+      tots.push(AB.runCar(AB.prepareCar(c.builds[r - 1]), Infinity, AB.mulberry32(i * 97 + k * 13 + r), { lite: true, cap: 10, vmax: AB.vmaxOf(r), lapLen: Infinity }).total);
     }
   });
   cal.push(median(tots));
 }
-console.log('Calibrated thresholds (median total at x=10):\n  [' + cal.map(function (v) { return Math.round(v); }).join(', ') + ']');
+console.log('Calibrated lap lengths (median total at x=10):\n  [' + cal.map(function (v) { return Math.round(v); }).join(', ') + ']');
 console.log('Current CFG.thresholds:\n  [' + CFG.thresholds.join(', ') + ']\n');
 if (process.argv[4] === 'apply') CFG.thresholds = cal.map(function (v) { return Math.round(v); });
 
@@ -32,7 +32,7 @@ var rng = AB.mulberry32(99);
 for (var rep = 0; rep < 600; rep++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var idx = []; while (idx.length < 10) { var j = Math.floor(rng() * lib.length); if (idx.indexOf(j) < 0) idx.push(j); }
-    var field = AB.raceField(idx.map(function (j) { return lib[j].builds[r - 1]; }), CFG.thresholds[r - 1], rng, { vmax: AB.vmaxOf(r) });
+    var field = AB.raceField(idx.map(function (j) { return lib[j].builds[r - 1]; }), AB.raceLen(r), rng, { vmax: AB.vmaxOf(r) });
     field.results.forEach(function (res, i) {
       var c = lib[idx[i]], b = c.builds[r - 1], R = rounds[r - 1];
       R.n++; R[res.status]++; if (res.status === 'fin') R.xs.push(res.x);
@@ -66,7 +66,7 @@ var rng2 = AB.mulberry32(4242);
 for (var rep2 = 0; rep2 < 300; rep2++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var ix = []; while (ix.length < 10) { var jj = Math.floor(rng2() * lib.length); if (ix.indexOf(jj) < 0) ix.push(jj); }
-    var T2 = CFG.thresholds[r - 1];
+    var T2 = AB.raceLen(r);
     var cars = ix.map(function (j) { return AB.prepareCar(lib[j].builds[r - 1]); });
     var res2 = cars.map(function (c) { return AB.runCar(c, T2, rng2, { vmax: AB.vmaxOf(r) }); });
     var fld = AB.raceField(ix.map(function (j) { return lib[j].builds[r - 1]; }), T2, AB.mulberry32(rep2 * 31 + r), { vmax: AB.vmaxOf(r) });
@@ -95,7 +95,7 @@ var lc = 0, wl = 0, nn = 0;
 for (var rp = 0; rp < 200; rp++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var ix2 = []; while (ix2.length < 10) { var j3 = Math.floor(rng2() * lib.length); if (ix2.indexOf(j3) < 0) ix2.push(j3); }
-    var T3 = CFG.thresholds[r - 1], rr = ix2.map(function (j) { return AB.runCar(AB.prepareCar(lib[j].builds[r - 1]), T3, rng2, { vmax: AB.vmaxOf(r) }); });
+    var T3 = AB.raceLen(r), rr = ix2.map(function (j) { return AB.runCar(AB.prepareCar(lib[j].builds[r - 1]), T3, rng2, { vmax: AB.vmaxOf(r) }); });
     var fx = rr.map(function (R, i) { return i; }).sort(function (a, b) { var A = rr[a], B = rr[b]; if (A.status === 'fin' && B.status === 'fin') return A.x - B.x; if (A.status === 'fin') return -1; if (B.status === 'fin') return 1; return B.total - A.total; });
     var win = rr[fx[0]], tEnd = win.x, last = -1, changes = 0, at60 = -1;
     for (var tt = 0.02; tt <= 1.0001; tt += 0.02) {
@@ -139,7 +139,7 @@ for (var ch = 0; ch < 1500; ch++) {
   for (var q = 0; q < 9; q++) field.push({ c: pool.splice(Math.floor(rngc() * pool.length), 1)[0], pts: 0, alive: true, last: 0, el: 1e9 });
   for (r = 1; r <= CFG.rounds; r++) {
     var alive = field.filter(function (f) { return f.alive; });
-    var res = AB.raceField(alive.map(function (f) { return f.c.builds[r - 1]; }), CFG.thresholds[r - 1], rngc, { vmax: AB.vmaxOf(r) });
+    var res = AB.raceField(alive.map(function (f) { return f.c.builds[r - 1]; }), AB.raceLen(r), rngc, { vmax: AB.vmaxOf(r) });
     alive.forEach(function (f, i) { f.pts += AB.pointsFor(res.pos[i], alive.length, r, res.results[i].status); f.last = res.pos[i]; });
     if (CFG.eliminateAfter.indexOf(r) >= 0) {
       var worst = alive.slice().sort(function (a, b) { return a.pts - b.pts || b.last - a.last; })[0];

@@ -9,7 +9,10 @@
   'use strict';
 
   var CFG = {
-    rounds: 9, maxTier: 4, fieldSize: 10, shopSize: 5, capX: 30,
+    rounds: 9, maxTier: 4, fieldSize: 10, shopSize: 5, capX: 70,
+    laps: 3, secPerStep: 9,          // a race is `laps` laps of thresholds[round] each; one step shows as 9 seconds
+    lapCool: 0.4,                    // tires cool at each lap line: wear drops by this share (never a full reset)
+    spunBack: 0.5, spunKeep: 0.85,   // spun around: one step backwards at half speed, momentum keeps 85%
     eliminateAfter: [2, 4, 6, 8],
     // F1 points per finishing position (index 0 = 1st); positions past the list get 0; a crash scores crashPoints
     points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], crashPoints: 0,
@@ -17,7 +20,7 @@
     mktBase: 2, sponsorBonus: 5, brandPrize: 0.25, botExpectedPts: 10,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
-    tierPrice: 10, upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
+    tierPrices: [0, 10, 22, 38, 55], /* part price by tier (x archetype factor) */ upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
     // Upgrade multiplier per tier (index = tier, then stars 0..3): cheap tiers gain less, so a 3-star T1 can't outrun a T4.
     upgradeMult: [[1, 1, 1, 1], [1, 1.3, 1.6, 2.0], [1, 1.4, 2.0, 3.0], [1, 1.5, 2.3, 3.5], [1, 1.5, 2.5, 4.0]],
     engineT1Mult: [1, 1.3, 1.5, 1.8],        // T1 engines gain even less (less early-game reliance on them)
@@ -39,9 +42,10 @@
     // Tire wear meter: wear += k * stress^p * wearMul, stress = engine load / tire limit.
     // Crossing a mark forces one hidden check (chance, then severity mix [puncture, blowout, crash]).
     wear: { k: 36, p: 1.5, marks: [20, 40, 60, 80], chances: [0.30, 0.40, 0.50, 0.60],
-      mixes: [[0.82, 0.14, 0.04], [0.60, 0.30, 0.10], [0.40, 0.35, 0.25], [0.25, 0.35, 0.40]],
-      over: 0.30, overMix: [0.15, 0.40, 0.45] },
-    thresholds: [34, 53, 79, 119, 178, 272, 393, 570, 795],
+      // severity [puncture, blowout, spun around, crash]: crashes come mostly from overheated tires
+      mixes: [[0.70, 0.12, 0.18, 0], [0.50, 0.25, 0.25, 0], [0.38, 0.30, 0.32, 0], [0.28, 0.30, 0.39, 0.03]],
+      over: 0.30, overMix: [0.15, 0.40, 0.35, 0.10] },
+    thresholds: [33, 51, 73, 107, 150, 225, 305, 450, 630],
     tradeIn: 0.5,                  // share of what you paid that comes back when a purchase replaces a part
     // Top speed per round (soft cap: weak cars barely notice it, strong cars level off near it). capK = sharpness.
     // Handling events: each step the car is steady, shaky or out of control. stress = raw speed / (top speed * grip).
@@ -53,19 +57,36 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.7';
+  var VERSION = '0.8';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.8', items: [
+      'Races are 3 laps. Tires cool a little at each lap line (wear drops 40%, never a full reset).',
+      'New trouble: spun around. The car turns the wrong way for a moment and loses ground, but keeps racing. Crashes now mostly come from overheated tires, so they stay about as rare as before even in longer races.',
+      'Race results show times like a real race: the winner’s time, then gaps (+2.7s). A crash shows DNF and the lap.',
+      'Parts cost more at higher tiers: 10 / 22 / 38 / 55 credits for T1-T4 (was 10 / 20 / 30 / 40), so marketing money matters more.',
+      'What’s new keeps every older version below. Old saves are discarded.'] },
     { v: '0.7', items: [
       'Handling events: push near top speed with poor grip and your car gets shaky (slower, harder on tires) or even spins out. Better handling and Ground effect design add grip.',
       'Upgrades now scale with tier: a 3-star Tier 1 part no longer beats a Tier 4. Tier 1 engines gain the least.',
       'Scouts now find copies of parts you own, so you can plan upgrades.',
       'Brand brings fans (better worst pilot roll) and a crowd that cheers louder the further behind you are in the standings. Brand keeps its prize money.',
       'Shop: grip word next to pace and tire risk, power curve sparkline on engines and designs.',
-      'This What’s new box. Old saves are discarded.'] },
-    { v: '0.6', items: ['Pinned shop bar, F1 points, free shop lock, marketing buffs, tier badges.'] },
-    { v: '0.5', items: ['Trade-in, upgrades cost 75%, top speed per round, pit stops, clearer tire gauges.'] }
+      'What’s new box in the menu.'] },
+    { v: '0.6', items: [
+      'Pinned shop bar: round, credits, rerolls, cars, pace and tire risk stay on screen while you scroll.',
+      'F1 points: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. A crash scores 0.',
+      'Shop lock: free, toggles any time, keeps the offers for next round. Rival teams lock too.',
+      'Marketing buffs: every marketing part pays +2 cr per round, Sponsors pay more plus a signing bonus, Scouts add offers, Brand pays prize money per point.',
+      'Tier badges in rarity colors: T1 grey, T2 green, T3 blue, T4 gold.'] },
+    { v: '0.5', items: [
+      'Trade-in: replacing a part gives back half of what you paid for it.',
+      'Upgrades cost 75% of the part’s price.',
+      'Every round has a top speed, so no car rockets away late in the race.',
+      'Tire trouble costs speed: a puncture halves it, a blowout is a pit stop with fresh tires, a crash ends the race.',
+      'Clearer gauges: tire wear in words, pace and tire risk forecast in the shop.'] }
   ];
+
   var SLOTS = ['engine', 'design', 'tires', 'handling', 'pilot', 'marketing'];
   var SLOT_NAME = { engine: 'Engine', design: 'Design', tires: 'Tires', handling: 'Handling', pilot: 'Pilot', marketing: 'Marketing' };
   var ARCH = {
@@ -230,10 +251,10 @@
   // ---------- events ----------
   // mix = [puncture, blowout, crash] shares; returns normalised shares for this car.
   function severity(mix, car) {
-    var p = mix[0], b = mix[1], c = mix[2] * car.crashMul;
+    var p = mix[0], b = mix[1], t = mix[2], c = mix[3] * car.crashMul;
     if (car.noCrash) { b += c; c = 0; }
-    var s = p + b + c;
-    return [p / s, b / s, c / s];
+    var s = p + b + t + c;
+    return [p / s, b / s, t / s, c / s];
   }
 
   /* Run one car. The engine runs on its own momentum xe (steps since the last pit stop), separate from race time x.
@@ -245,7 +266,8 @@
     opts = opts || {};
     var cap = opts.cap || CFG.capX, lite = !!opts.lite, W = CFG.wear, vm = opts.vmax || 0, H = CFG.handling;
     var roll = opts.roll != null ? opts.roll : Math.max(0.02, Math.min(1, car.rollLo + rng() * (car.rollHi - car.rollLo)));
-    var tot = 0, xe = 0, wear = 0, mi = 0, over = 0, show = 0, showCode = 0, shaky = 0, wild = 0;
+    var tot = 0, xe = 0, wear = 0, mi = 0, over = 0, show = 0, showCode = 0, shaky = 0, wild = 0, back = false;
+    var lapLen = opts.lapLen || (isFinite(T) ? T / CFG.laps : 0), nextLap = lapLen || Infinity;
     var totals = lite ? null : [0], st = lite ? null : [0], wr = lite ? null : [0], hs = lite ? null : [0], events = [];
     var boost = car.tireBonus * roll * (car.crowd || 1);
     function done(status, xv, total, wend) {
@@ -277,6 +299,7 @@
             var sh = severity(mix, car), u = rng(), res;
             if (u < sh[0]) { xe = Math.max(1, Math.round(xe * CFG.punctureKeep)); res = 'puncture'; show = 2; showCode = 1; }
             else if (u < sh[0] + sh[1]) { xe = Math.max(1, Math.round(xe * car.keep)); wear = 0; mi = 0; res = 'pit'; show = 2; showCode = 2; }
+            else if (u < sh[0] + sh[1] + sh[2]) { back = true; res = 'turn'; show = 2; showCode = 4; }
             else { crashNow = true; res = 'crash'; }
             events.push({ x: x, type: res });
             if (res === 'pit') break; // fresh tires: the remaining checks of this step are void
@@ -287,6 +310,7 @@
       var code = show > 0 ? showCode : 0;
       if (show > 0) show--;
       var out = capSpeed(car.engine(xe) * boost * (1 + car.design(xe)) * car.pilotStep(xe), vmx);
+      if (back) { out = -Math.min(tot, CFG.spunBack * out); xe = Math.max(1, Math.round(xe * CFG.spunKeep)); back = false; } // spun around: drives backwards for a step
       if (tot + out >= T) { // finish is checked before a crash on the same step
         var fr = (T - tot) / out;
         if (!lite) { totals.push(T); st.push(code); wr.push(wear); hs.push(hState); }
@@ -297,12 +321,19 @@
         return done('crash', x, tot, wear);
       }
       tot += out;
+      if (tot >= nextLap) { // lap line: tires cool a little, and passed checks re-arm below the new wear
+        nextLap += lapLen; wear *= 1 - CFG.lapCool; mi = 0;
+        while (mi < W.marks.length && wear >= W.marks[mi]) mi++;
+      }
       if (!lite) { totals.push(tot); st.push(code); wr.push(wear); hs.push(hState); }
     }
     return done('cap', cap, tot, wear);
   }
 
   // Race a field. builds = array of builds. Returns results + positions (1 = winner).
+  function raceLen(round) { return CFG.thresholds[round - 1] * CFG.laps; } // finish line = laps x lap length
+  function lapLenOf(round) { return CFG.thresholds[round - 1]; }
+  function fmtTime(x) { var s = x * CFG.secPerStep, m = Math.floor(s / 60), r = s - 60 * m; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); }
   function vmaxOf(round) { return CFG.vmax ? CFG.vmax[round - 1] : 0; }
   function raceField(builds, T, rng, opts, ctxs) {
     var results = builds.map(function (b, i) { return runCar(prepareCar(b, ctxs && ctxs[i]), T, rng, opts); });
@@ -323,7 +354,7 @@
   /* Forecast for the shop: finish step for a low / average / high pilot roll without tire trouble (pace),
    * plus tire risk from replaying the race with trouble on (average problems, crash share). */
   function forecast(build, round, ctx) {
-    var T = CFG.thresholds[round - 1], car = prepareCar(build, ctx), W = CFG.wear, out = {};
+    var T = raceLen(round), car = prepareCar(build, ctx), W = CFG.wear, out = {};
     [['lo', car.rollLo], ['mid', (car.rollLo + car.rollHi) / 2], ['hi', car.rollHi]].forEach(function (a) {
       var r = runCar(car, T, mulberry32(1), { lite: true, noEvents: true, vmax: vmaxOf(round), roll: Math.max(0.02, Math.min(1, a[1])) });
       out[a[0]] = { x: r.x, fin: r.status === 'fin', wear: r.wear, over: r.over };
@@ -359,7 +390,7 @@
   function shopQuality(build) { return marketingOf(build).q; }
   function rerollsOf(build) { return marketingOf(build).rerolls; }
 
-  function price(offer) { return Math.round(CFG.tierPrice * offer.t * archInfo(offer.s, offer.a).f); }
+  function price(offer) { return Math.round(CFG.tierPrices[offer.t] * archInfo(offer.s, offer.a).f); }
   // What buying this offer would do to this build.
   function classify(build, offer) {
     var own = build[offer.s];
@@ -517,7 +548,7 @@
   }
   function playerBehind(run) { var cars = run.field.filter(function (c) { return c.alive; }); return behindOf(cars)[cars.indexOf(run.field[0])] || 0; }
   function race(run) {
-    var round = run.round, T = CFG.thresholds[round - 1];
+    var round = run.round, T = raceLen(round);
     var cars = run.field.filter(function (c) { return c.alive; }), behind = behindOf(cars);
     var builds = cars.map(function (c) { return cloneBuild(c.player ? run.build : c.career.builds[round - 1]); }); // clones show pre-race experience
     var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729), { vmax: vmaxOf(round) }, behind.map(function (b) { return { behind: b }; }));
@@ -637,7 +668,7 @@
   }
 
   return {
-    CHANGELOG: CHANGELOG, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
+    CHANGELOG: CHANGELOG, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
     CFG: CFG, SLOTS: SLOTS, SLOT_NAME: SLOT_NAME, ARCH: ARCH, archInfo: archInfo,
     mulberry32: mulberry32, gauss: gauss, pickWeighted: pickWeighted,
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,
