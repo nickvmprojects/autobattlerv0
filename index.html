@@ -96,7 +96,7 @@
   .wfill { height:100%; }
   #wear { background:var(--panel); padding:8px 10px; margin:8px 0; }
   .wlog { font-size:14px; font-style:italic; }
-  .r-puncture { color:var(--warn); } .r-pit { color:var(--acc); } .r-crash, .r-spin { color:var(--bad); font-weight:700; } .r-turn { color:#c89bff; }
+  .r-puncture { color:var(--warn); } .r-bounce { color:#c89bff; } .r-pit { color:var(--acc); } .r-crash, .r-spin { color:var(--bad); font-weight:700; } .r-turn { color:#c89bff; }
   table { width:100%; border-collapse:collapse; font-size:16px; font-style:italic; }
   td, th { padding:4px; border-bottom:1px solid var(--line); text-align:left; }
   th { color:var(--acc); text-transform:uppercase; font-size:13px; letter-spacing:.08em; }
@@ -125,8 +125,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.12"></script>
-<script src="bots.js?v=0.12"></script>
+<script src="engine.js?v=0.12b"></script>
+<script src="bots.js?v=0.12b"></script>
 <script>
 (function () {
   'use strict';
@@ -405,8 +405,8 @@
     return { s: s, L: L, tot: a + (b - a) * w.fr, code: r.st[i1], hs: r.hs[i1], wear: wa + (wb - wa) * w.fr, done: s >= L };
   }
   function zoneOf(wear) { var z = 0; CFG.wear.marks.forEach(function (m) { if (wear >= m) z++; }); return wear >= 100 ? 5 : z; }
-  var EV_TXT = { turn: 'Spun around! Lost some ground', puncture: 'Puncture: lost speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
-  var EV_SHORT = { turn: 'spun around', puncture: 'puncture', pit: 'pit stop', crash: 'crash', spin: 'spun out' };
+  var EV_TXT = { bounce: 'Hit the wall! The armour saved you', turn: 'Spun around! Lost some ground', puncture: 'Puncture: lost speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
+  var EV_SHORT = { bounce: 'bounced off the wall', turn: 'spun around', puncture: 'puncture', pit: 'pit stop', crash: 'crash', spin: 'spun out' };
   var EV_ICON = { 1: '~', 2: 'P', 4: '↺' };
   function tireWord(wear) { return wear >= 100 ? 'OVERHEATING' : wear >= 80 ? 'critical' : wear >= 60 ? 'risky' : wear >= 40 ? 'worn' : wear >= 20 ? 'used' : 'fresh'; }
   function stamp(row, t) {
@@ -420,6 +420,8 @@
     podium: ['{A} passes {B} for P{n}!', '{A} slips past {B} into P{n}!', '{A} muscles by {B}, P{n} now!'],
     crash: ['Huge crash for {A}, they’re out!', 'Disaster for {A}! Race over.', '{A} is in the wall! Somebody call their mother.'],
     spin: ['{A} loses it completely and spins out of the race!', '{A} goes off and won’t rejoin!'],
+    bounce: ['{A} slams the wall and keeps going! That armour paid for itself.', 'CRUNCH! {A} bounces off the barrier and races on!'],
+    nitro: ['{A} hits the nitro!', 'NITRO! {A} lights up the last lap!', '{A} goes full afterburner!'],
     turn: ['{A} spins around! Precious seconds gone.', 'Whoa, {A} is facing the wrong way!', '{A} does a full 360!'],
     puncture: ['Puncture for {A}!', '{A} has a puncture and slows down!', 'Trouble for {A}, the tire’s going down!'],
     pit: ['Blowout! {A} limps into the pits.', '{A} pits after a blowout!', 'Rubber everywhere, {A} has to pit!'],
@@ -448,10 +450,12 @@
     }
     function out(r, s) { return r.res.status === 'crash' && r.res.x <= s; }
     var prev = null, lastLap = false, wildMe = false, recent = {}, me = rows.filter(function (r) { return r.car.player; })[0];
+    var nitroSaid = {};
     for (var s = 1; s <= steps; s++) {
       var o = rank(s);
       rows.forEach(function (r) { r.res.events.forEach(function (e) { if (e.x === s && (e.type === 'crash' || e.type === 'spin' || o.indexOf(r) < 3 || r.car.player)) say(s - 0.5, e.type, r); }); });
       if (me && !wildMe && me.res.hs && me.res.hs[s] === 2) { wildMe = true; say(s - 0.5, 'wild', me); }
+      rows.forEach(function (r) { if (r.res.nitroAt === s && !nitroSaid[r.car.id] && (r.car.player || o.indexOf(r) < 3)) { nitroSaid[r.car.id] = 1; say(s - 0.5, 'nitro', r); } });
       if (prev) {
         var lead = o[0];
         if (lead !== prev[0] && !out(lead, s) && !(lead.res.status === 'fin' && lead.res.x <= s)) say(s, s <= 2 ? 'start' : 'lead', lead, prev[0]);
@@ -658,6 +662,7 @@
         var notes = [];
         if (run.prizeLast > 0) notes.push('Brand prize money: +' + run.prizeLast + ' cr.');
         if (run.lockedIn) notes.push('Your locked offers are back.');
+        if (run.bookieLast > 0) notes.push('Bookie pays out: +' + run.bookieLast + ' cr!'); else if (run.bookieLast < 0) notes.push('Bookie collects: ' + run.bookieLast + ' cr.');
         showShop(notes.join(' '));
       }
       window.scrollTo(0, 0);

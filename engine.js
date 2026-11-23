@@ -21,6 +21,11 @@
     brandPrize: 0.25, botExpectedPts: 10,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
+    startBonus: 4,                   // extra credits in round 1
+    enginePow: 1.08, engineWear: 1.1, // every non-stock engine: power x, tire wear x
+    handlingPow: [0.01, 0.08],       // handling: +1% power per effective tier, at most +8%
+    pilotAccel: 0.02,                // pilot: momentum builds 2% faster per effective tier
+    bookie: [6, 2],                  // Bookie: podium pays 6 cr per tier, finishing outside the top 5 costs 2 per tier
     designPower: 1,                  // Design adds this share of its bonus as power, and its full bonus as top speed
     stockTireLimit: 50, tirePriceStep: 0.1, handlingPrice: 0.85, // tires cost +10% per tier above T1, handling parts 15% less
     tierPrices: [0, 10, 22, 38, 55], /* part price by tier (x archetype factor) */ upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
@@ -48,7 +53,7 @@
       // severity [puncture, blowout, spun around, crash]: crashes come mostly from overheated tires
       mixes: [[0.70, 0.12, 0.18, 0], [0.50, 0.25, 0.25, 0], [0.38, 0.30, 0.32, 0], [0.28, 0.30, 0.39, 0.03]],
       over: 0.30, overMix: [0.15, 0.40, 0.35, 0.10] },
-    thresholds: [37, 55, 85, 130, 190, 285, 400, 585, 860],
+    thresholds: [39, 57, 87, 134, 192, 290, 400, 580, 850],
     tradeIn: 0.5,                  // share of what you paid that comes back when a purchase replaces a part
     // Top speed per round (soft cap: weak cars barely notice it, strong cars level off near it). capK = sharpness.
     // Handling events: each step the car is steady, shaky or out of control. stress = raw speed / (top speed * grip).
@@ -60,9 +65,14 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.12';
+  var VERSION = '0.12b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.12b', items: [
+      'New archetypes, one per slot (marketing gets two): Nitro engine (final-lap burst), Armored design (crashes become spins), All-weather tires (ignore wet and ice), Drift kit handling (shaky costs no speed), Prodigy pilot (learns twice as fast), Bookie (bets on your podium) and Pit crew deal (faster pit stops).',
+      'Handling now adds a little power, and better pilots build speed a little faster.',
+      'Engines are 8% stronger but harder on tires.',
+      '+4 credits in round 1.'] },
     { v: '0.12', items: [
       'Circuits! Every championship draws 9 different tracks from a pool of 10, each with its own shape, colours, announcer and twist: wet docks, desert straights, ice, thin mountain air, a haunted oval and more.',
       'The shop shows the next race’s circuit and its effects (your pace, tire and grip forecast already include them), plus a peek at the one after.',
@@ -119,12 +129,12 @@
   var SLOTS = ['engine', 'design', 'tires', 'handling', 'pilot', 'marketing'];
   var SLOT_NAME = { engine: 'Engine', design: 'Design', tires: 'Tires', handling: 'Handling', pilot: 'Pilot', marketing: 'Marketing' };
   var ARCH = {
-    engine: [{ id: 'sprinter', name: 'Sprinter', f: 1.0 }, { id: 'endurance', name: 'Endurance', f: 1.0 }, { id: 'turbo', name: 'Turbo', f: 1.15 }],
-    design: [{ id: 'aero', name: 'Aero', f: 1.1 }, { id: 'ground', name: 'Ground effect', f: 1.2 }, { id: 'light', name: 'Lightweight', f: 0.9 }, { id: 'rnd', name: 'R&D', f: 0.8 }],
-    tires: [{ id: 'hard', name: 'Hard compound', f: 1.0 }, { id: 'soft', name: 'Soft compound', f: 0.9 }, { id: 'reinforced', name: 'Reinforced', f: 1.1 }],
-    handling: [{ id: 'stabilizer', name: 'Stabilizer', f: 1.0 }, { id: 'traction', name: 'Traction control', f: 1.1 }, { id: 'setup', name: 'Race setup', f: 0.9 }],
-    pilot: [{ id: 'veteran', name: 'Veteran', f: 1.0 }, { id: 'wildcard', name: 'Wildcard', f: 0.9 }, { id: 'opportunist', name: 'Opportunist', f: 0.8 }],
-    marketing: [{ id: 'sponsor', name: 'Sponsor', f: 1.0 }, { id: 'scouts', name: 'Scouts', f: 0.9 }, { id: 'brand', name: 'Brand', f: 1.2 }]
+    engine: [{ id: 'sprinter', name: 'Sprinter', f: 1.0 }, { id: 'endurance', name: 'Endurance', f: 1.0 }, { id: 'turbo', name: 'Turbo', f: 1.15 }, { id: 'nitro', name: 'Nitro', f: 1.1 }],
+    design: [{ id: 'aero', name: 'Aero', f: 1.1 }, { id: 'ground', name: 'Ground effect', f: 1.2 }, { id: 'light', name: 'Lightweight', f: 0.9 }, { id: 'rnd', name: 'R&D', f: 0.8 }, { id: 'armored', name: 'Armored', f: 1.0 }],
+    tires: [{ id: 'hard', name: 'Hard compound', f: 1.0 }, { id: 'soft', name: 'Soft compound', f: 0.9 }, { id: 'reinforced', name: 'Reinforced', f: 1.1 }, { id: 'allweather', name: 'All-weather', f: 1.0 }],
+    handling: [{ id: 'stabilizer', name: 'Stabilizer', f: 1.0 }, { id: 'traction', name: 'Traction control', f: 1.1 }, { id: 'setup', name: 'Race setup', f: 0.9 }, { id: 'drift', name: 'Drift kit', f: 1.0 }],
+    pilot: [{ id: 'veteran', name: 'Veteran', f: 1.0 }, { id: 'wildcard', name: 'Wildcard', f: 0.9 }, { id: 'opportunist', name: 'Opportunist', f: 0.8 }, { id: 'prodigy', name: 'Prodigy', f: 0.9 }],
+    marketing: [{ id: 'sponsor', name: 'Sponsor', f: 1.0 }, { id: 'scouts', name: 'Scouts', f: 0.9 }, { id: 'brand', name: 'Brand', f: 1.2 }, { id: 'bookie', name: 'Bookie', f: 1.0 }, { id: 'pitcrew', name: 'Pit crew deal', f: 1.0 }]
   };
   function archInfo(slot, id) {
     var l = ARCH[slot];
@@ -164,11 +174,12 @@
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
   function engineFn(p) {
-    var e = CFG.expo[p.t], m = mult(p) * season(p), l = lv(p);
+    var e = CFG.expo[p.t], m = mult(p) * season(p) * (p.t ? CFG.enginePow : 1), l = lv(p);
     switch (p.a) {
       case 'sprinter': return function (x) { return m * 2.1 * Math.pow(x, e - 0.5 + 0.05 * l); };
       case 'endurance': return function (x) { return m * 0.7 * Math.pow(x, e + 0.4) * (1 + 0.25 * l * Math.max(0, 1 - x / 12)); };
       case 'turbo': return function (x) { return m * 1.35 * Math.pow(x, e); };
+      case 'nitro': return function (x) { return m * 1.05 * Math.pow(x, e); }; // plus a final-lap burst (car.nitro)
       default: return function (x) { return 3 * x; };
     }
   }
@@ -180,6 +191,7 @@
       case 'aero': return function (x) { return g * Math.min(1.4, 0.3 + 0.1 * l + 0.1 * x); };
       case 'light': return function () { return 0.85 * g; };
       case 'rnd': return function () { return (0.8 + 0.1 * l) * g; };
+      case 'armored': return function () { return 0.9 * g; }; // crashes become spins (car.armored)
       default: return function () { return 0; };
     }
   }
@@ -196,6 +208,7 @@
     var lim = 1.1 * Math.pow(10, CFG.expo[p.t]) * mult(p) * season(p);
     if (p.a === 'hard') info.evMul = Math.max(0.6, 1 - 0.08 * l);
     if (p.a === 'soft') { lim *= 0.85; info.bonus = 1 + CFG.softBase + 0.03 * l; }
+    if (p.a === 'allweather') { lim *= 0.95; info.allWeather = true; }
     if (p.a === 'reinforced') { lim *= 0.8; info.noCrash = true; info.keep = Math.min(0.7, CFG.pitKeep + CFG.reinforcedKeep + 0.08 * l); }
     info.limit = lim;
     return info;
@@ -207,6 +220,7 @@
     var G = CFG.handling.perTier * e, safe = Math.max(0.7, 1 - 0.04 * e); // every handling part also makes crashes a bit rarer
     if (p.a === 'stabilizer') { h.grip = 1.2 * G; h.floor = Math.min(0.25, 0.04 * e); h.crashMul = Math.max(0.2, 1 - 0.08 * e); h.evMul = Math.max(0.7, 1 - 0.05 * l); }
     if (p.a === 'traction') { h.grip = G; h.shakyWear = 1; h.evMul = Math.max(0.25, 1 - 0.12 * e); h.floor = Math.min(0.08, 0.02 * l); }
+    if (p.a === 'drift') { h.grip = 1.0 * G; h.drift = 1.06 + 0.012 * l; h.evMul = Math.max(0.7, 1 - 0.05 * e); }
     if (p.a === 'setup') { h.grip = 1.1 * G; h.top = Math.min(0.28, 0.06 * e); h.crashMul = Math.max(0.6, 1 - 0.08 * l); }
     h.crashMul *= safe;
     return h;
@@ -227,7 +241,7 @@
     if (p.t > 0) {
       var L = pilotLv(p);
       if (p.a === 'veteran') {
-        var mid = (lo + hi) / 2 + 0.01, half = (hi - lo) / 2 * 0.4; lo = mid - half + 0.03 * L.u; hi = mid + half;
+        var mid = (lo + hi) / 2 - 0.01, half = (hi - lo) / 2 * 0.4; lo = mid - half + 0.03 * L.u; hi = mid + half;
         var wv = Math.max(0.5, (1 - 0.05 * L.b) * (1 - 0.04 * L.u));
         info.wear = function () { return wv; };
         info.crashMul = 0.8 * Math.max(0.3, 1 - 0.08 * L.b);
@@ -237,6 +251,8 @@
         var pw = 1 + 0.05 * L.b;
         info.pow = function () { return pw; };
         info.wear = function () { return pw; };
+      } else if (p.a === 'prodigy') { // a rookie who learns twice as fast
+        var gain = Math.min(0.16, 0.02 * (p.x || 0)); lo += gain - 0.05; hi += gain - 0.04;
       } else if (p.a === 'opportunist') {
         var start = Math.min(0.9, 0.75 + 0.08 * L.u), early = 1 - 0.10 * L.b, late = 1 + 0.03 * L.u;
         info.pow = function (x) { return Math.min(1.3, start + 0.06 * x) * (x >= 6 ? late : 1); };
@@ -248,11 +264,13 @@
   }
   function marketingInfo(p) {
     var m = mult(p) * season(p), l = lv(p), base = p.t > 0 ? CFG.mktBase : 0;
-    var info = { credits: base, rerolls: 1, q: 0, extra: 0, bonus: 0, prize: 0, find: 0, fans: 0, crowd: 0 };
+    var info = { credits: base, rerolls: 1, q: 0, extra: 0, bonus: 0, prize: 0, find: 0, fans: 0, crowd: 0, bet: 0, pit: 0 };
     switch (p.a) {
       case 'sponsor': info.credits += 5 * p.t * m; info.rerolls = 1 + (l >= 2 ? 1 : 0); info.bonus = Math.round(CFG.sponsorBonus * p.t); break;
       case 'scouts': info.credits += 2 * p.t * m; info.rerolls = 1 + Math.floor(l); info.extra = p.t >= 3 ? 2 : 1; info.find = Math.min(CFG.scoutFind[2], CFG.scoutFind[0] + CFG.scoutFind[1] * l); break;
       case 'brand': info.credits += 2 * p.t * m; info.fans = Math.min(CFG.brandFans[1], CFG.brandFans[0] * l); info.crowd = Math.min(CFG.brandCrowd[1], CFG.brandCrowd[0] * l); info.prize = CFG.brandPrize * p.t * m; break;
+      case 'bookie': info.credits += 1 * p.t * m; info.bet = p.t * m; break;
+      case 'pitcrew': info.credits += 1 * p.t * m; info.pit = Math.min(0.4, 0.15 + 0.05 * l); break;
     }
     info.rerolls += p.t > 0 ? CFG.rerollBonus : CFG.rerollStock;
     return info;
@@ -274,16 +292,25 @@
     car.wearMul = function (x) { return ev * pl.wear(x); };
     car.crashMul = ha.crashMul * pl.crashMul;
     car.grip = H.grip + ha.grip + (de.a === 'ground' ? H.groundGrip * ts(de) * mult(de) : 0);
-    car.shakyWear = b.handling.a === 'traction' && b.handling.t > 0 ? 1 : H.shakyWear;
+    car.shakyWear = (b.handling.a === 'traction' || b.handling.a === 'drift') && b.handling.t > 0 ? 1 : H.shakyWear;
     var ce = (ctx && ctx.circuit && ctx.circuit.fx) || {};
     car.crowd = 1 + mk.crowd * (ce.crowd || 1) * clamp((ctx && ctx.behind) || 0, 0, 1);
     // circuit effects
-    if (ce.grip) car.grip *= ce.grip;
+    var aw = tr.allWeather;
+    if (ce.grip && !(aw && ce.grip < 1)) car.grip *= ce.grip;
     if (ce.wear) { var wm = car.wearMul; car.wearMul = function (x) { return wm(x) * ce.wear; }; }
     if (ce.power && !(ce.turboImmune && en.a === 'turbo')) { var ef = car.engine; car.engine = function (x) { return ef(x) * ce.power; }; }
     if (ce.spread) { var mid = (car.rollLo + car.rollHi) / 2, half = (car.rollHi - car.rollLo) / 2 * ce.spread + 0.02 * (ce.spread - 1); car.rollLo = Math.max(0.05, mid - half); car.rollHi = Math.min(1, mid + half); }
     if (ce.pitKeep) car.keep *= ce.pitKeep;
-    car.vmMul = ce.top || 1; car.turnMul = ce.turn || 1; car.punctMul = ce.puncture || 1;
+    car.vmMul = ce.top || 1; car.turnMul = (aw && ce.turn > 1) ? 1 : ce.turn || 1; car.punctMul = ce.puncture || 1;
+    // new archetypes and the speed help from handling and pilot
+    car.nitro = en.a === 'nitro' ? Math.min(1.45, 1.3 + 0.03 * lv(en)) : 0;
+    car.armored = de.a === 'armored';
+    car.drift = ha.drift || 0;
+    car.keep += mk.pit; car.punctKeep = CFG.punctureKeep + mk.pit * 0.5;
+    car.handPow = b.handling.t ? 1 + Math.min(CFG.handlingPow[1], CFG.handlingPow[0] * effTier(b.handling) * season(b.handling)) : 1;
+    car.accel = b.pilot.t ? 1 + CFG.pilotAccel * effTier(b.pilot) : 1;
+    if (en.t) { var wm2 = car.wearMul; car.wearMul = function (x) { return wm2(x) * CFG.engineWear; }; }
     return car;
   }
 
@@ -308,21 +335,21 @@
     var tot = 0, xe = 0, wear = 0, mi = 0, over = 0, show = 0, showCode = 0, shaky = 0, wild = 0, back = false;
     var lapLen = opts.lapLen || (isFinite(T) ? T / CFG.laps : 0), nextLap = lapLen || Infinity;
     var totals = lite ? null : [0], st = lite ? null : [0], wr = lite ? null : [0], hs = lite ? null : [0], events = [];
-    var boost = car.tireBonus * roll * (car.crowd || 1);
+    var boost = car.tireBonus * roll * (car.crowd || 1) * (car.handPow || 1), nitroAt = 0, lastLap = lapLen ? lapLen * (CFG.laps - 1) : Infinity;
     function done(status, xv, total, wend) {
-      return { status: status, x: xv, total: total, totals: totals, st: st, wr: wr, hs: hs, events: events, roll: roll, wear: wend, over: over, shaky: shaky, wild: wild };
+      return { status: status, x: xv, total: total, totals: totals, st: st, wr: wr, hs: hs, events: events, roll: roll, wear: wend, over: over, shaky: shaky, wild: wild, nitroAt: nitroAt };
     }
     for (var x = 1; x <= cap; x++) {
-      xe++;
-      var eng = car.engine(xe), crashNow = false, spin = false, w0 = wear, hState = 0, shakyNow = false;
+      xe += car.accel || 1;
+      var eng = car.engine(xe), crashNow = false, spin = false, w0 = wear, hState = 0, shakyNow = false, sliding = false;
       // handling: how hard is the car pushing against its top speed, given its grip?
       if (vm >= H.minVmax && !opts.noEvents) { // round 1 is a warm-up: no handling events
         var dTop = vm * (1 + car.design(xe)); // design raises top speed
         var stress = capSpeed(eng * boost * car.pilotStep(xe) * (1 + CFG.designPower * car.design(xe)), dTop) / vm / car.grip; // speed vs the round's base top speed, per unit of grip
         var pOut = clamp(H.outK * (stress - H.outAt), 0, H.outMax), pSh = clamp(H.shakyK * (stress - H.shakyAt), 0, H.shakyMax), hu = rng();
-        hState = hu < pOut ? 2 : hu < pOut + pSh ? 1 : 0;
+        hState = hu < pOut ? 2 : hu < pOut + pSh ? 1 : 0; sliding = stress >= H.shakyAt * 0.75; // near the limit: drift kits slide fast
         if (hState) {
-          xe -= 0.5; eng = car.engine(xe); shakyNow = true;  // half acceleration, lower top speed
+          if (!car.drift) { xe -= 0.5; eng = car.engine(xe); shakyNow = true; }  // half acceleration, lower top speed (a drift kit slides through it)
           if (hState === 1) shaky++; else wild++;
           if (hState === 2 && rng() < H.outCrash * car.crashMul) spin = true;
         }
@@ -337,20 +364,23 @@
           var k = ks[q], chance = k >= 0 ? W.chances[k] : W.over, mix = k >= 0 ? W.mixes[k] : W.overMix;
           if (rng() < chance) {
             var sh = severity(mix, car), u = rng(), res;
-            if (u < sh[0]) { xe = Math.max(1, Math.round(xe * CFG.punctureKeep)); res = 'puncture'; show = 2; showCode = 1; }
+            if (u < sh[0]) { xe = Math.max(1, Math.round(xe * (car.punctKeep || CFG.punctureKeep))); res = 'puncture'; show = 2; showCode = 1; }
             else if (u < sh[0] + sh[1]) { xe = Math.max(1, Math.round(xe * car.keep)); wear = 0; mi = 0; res = 'pit'; show = 2; showCode = 2; }
             else if (u < sh[0] + sh[1] + sh[2]) { back = true; res = 'turn'; show = 2; showCode = 4; }
+            else if (car.armored) { back = true; res = 'bounce'; show = 2; showCode = 4; } // armour: hits the wall, keeps racing
             else { crashNow = true; res = 'crash'; }
             events.push({ x: x, type: res });
             if (res === 'pit') break; // fresh tires: the remaining checks of this step are void
           }
         }
-        if (spin && !crashNow) { crashNow = true; events.push({ x: x, type: 'spin' }); }
+        if (spin && !crashNow) { if (car.armored) { back = true; events.push({ x: x, type: 'bounce' }); } else { crashNow = true; events.push({ x: x, type: 'spin' }); } }
       }
       var code = show > 0 ? showCode : 0;
       if (show > 0) show--;
       var top = vm ? vm * (1 + car.design(xe)) * (shakyNow ? H.shakyCap : 1) : 0; // Design raises top speed (no cap: it multiplies power)
-      var out = top ? capSpeed(car.engine(xe) * boost * car.pilotStep(xe) * (1 + CFG.designPower * car.design(xe)), top) : car.engine(xe) * boost * (1 + car.design(xe)) * car.pilotStep(xe);
+      var nb = (car.nitro && tot >= lastLap) ? car.nitro : 1; if (nb > 1 && !nitroAt) nitroAt = x;
+      var dr = (car.drift && (hState || sliding)) ? car.drift : 1;
+      var out = top ? capSpeed(car.engine(xe) * boost * nb * dr * car.pilotStep(xe) * (1 + CFG.designPower * car.design(xe)), top * (nb > 1 ? 1 + (nb - 1) * 0.5 : 1)) : car.engine(xe) * boost * (1 + car.design(xe)) * car.pilotStep(xe);
       if (back) { out = -Math.min(tot, CFG.spunBack * out); xe = Math.max(1, Math.round(xe * CFG.spunKeep)); back = false; } // spun around: drives backwards for a step
       if (tot + out >= T) { // finish is checked before a crash on the same step
         var fr = (T - tot) / out;
@@ -417,7 +447,7 @@
     SLOTS.forEach(function (s) {
       var p = b[s];
       if (p.t === 0) return;
-      if (s === 'pilot') p.x = (p.x || 0) + 1;
+      if (s === 'pilot') p.x = (p.x || 0) + (p.a === 'prodigy' ? 2 : 1);
       else if (p.u > 0) p.x = (p.x || 0) + p.u;
     });
     return b;
@@ -426,7 +456,7 @@
   // ---------- economy and shop ----------
   function marketingOf(build) { return marketingInfo(build.marketing); }
   // lastPts: championship points scored in the previous race (Brand prize money)
-  function income(build, round, lastPts) { var m = marketingOf(build); return Math.round(CFG.incomeBase + CFG.incomePerRound * round + m.credits + m.prize * (lastPts || 0)); }
+  function income(build, round, lastPts) { var m = marketingOf(build); return Math.round(CFG.incomeBase + CFG.incomePerRound * round + (round === 1 ? CFG.startBonus : 0) + m.credits + m.prize * (lastPts || 0)); }
   function shopSizeOf(build) { return CFG.shopSize + marketingOf(build).extra; }
   function shopQuality(build) { return marketingOf(build).q; }
   function rerollsOf(build) { return marketingOf(build).rerolls; }
@@ -602,6 +632,7 @@
     var m = marketingOf(run.build);
     run.prizeLast = Math.round(m.prize * (run.lastPts || 0));
     run.credits += income(run.build, run.round, run.lastPts);
+    run.bookieLast = run.bookie || 0; run.credits = Math.max(0, run.credits + run.bookieLast); run.bookie = 0;
     run.rerollsLeft = rerollsOf(run.build);
     run.offers = drawOffers(run.build, run.round, run.rng, run.locked ? run.offers : null);
     run.lockedIn = !!run.locked; run.locked = false; // locked offers came back; the lock is used up
@@ -655,6 +686,9 @@
     var report = { round: round, T: T, n: n, rows: rows, eliminated: null, playerPos: rr.pos[0], playerPts: rows[0].pts, circuit: circ };
     run.history.push({ round: round, pos: rr.pos[0], pts: rows[0].pts, status: rr.results[0].status });
     run.lastPts = rows[0].pts;
+    var bk = marketingOf(run.build).bet; // Bookie: settled now, paid at the next shop
+    run.bookie = !bk ? 0 : rr.pos[0] <= 3 && rr.results[0].status !== 'crash' ? Math.round(CFG.bookie[0] * bk) : (rr.pos[0] > 5 || rr.results[0].status === 'crash') ? -Math.round(CFG.bookie[1] * bk) : 0;
+    report.bookie = run.bookie;
     if (CFG.eliminateAfter.indexOf(round) >= 0) {
       var worst = cars.slice().sort(function (a, b) { return a.points - b.points || b.last - a.last; })[0];
       worst.alive = false; worst.elimRound = round; report.eliminated = worst;
@@ -697,6 +731,13 @@
     veteran: ['Grandpa Gus', 'Old Hand Hank', 'Steady Eddie', 'Sir Reliable'],
     wildcard: ['Crazy Carl', 'Mad Mabel', 'Wacky Wanda', 'Captain Chaos'],
     opportunist: ['Late Larry', 'Snail Sam', 'Comeback Cora', 'Closer Clyde'],
+    nitro: ['Soda Rocket', 'Firework Pack', 'Dragon Burp', 'Comet Kicker'],
+    armored: ['Trash Can Lid', 'Pot Armor', 'Tank Shell', 'Fortress Hull'],
+    allweather: ['Wellington Tires', 'Puddle Jumpers', 'Storm Treads', 'Monsoon Masters'],
+    drift: ['Banana Peel', 'Sideways Kit', 'Tokyo Slide', 'Smoke Show'],
+    prodigy: ['Kid Karter', 'Teen Sensation', 'Wonder Kid', 'The Chosen One'],
+    bookie: ['Corner Bookie', 'Lucky Larry Bets', 'High Roller', 'The House'],
+    pitcrew: ['Uncle With Wrench', 'Weekend Crew', 'Pro Pit Squad', 'Lightning Crew'],
     sponsor: ['Bake Sale', 'Local Diner', 'Soda Giant', 'Mega Corp'],
     scouts: ['Pigeon Spy', 'Binocular Bob', 'Talent Hound', 'Spy Satellite'],
     brand: ['Sticker Pack', 'Catchy Jingle', 'Mascot Suit', 'Billboard Empire']
@@ -718,6 +759,7 @@
       case 'engine':
         if (p.a === 'sprinter') return 'power ' + fmt(2.2 * m) + '·x^' + fmt(e - 0.5 + 0.05 * l) + ' (strong early, flattens)';
         if (p.a === 'endurance') return 'power ' + fmt(0.7 * m) + '·x^' + fmt(e + 0.4) + ' (slow start, steep late)';
+        if (p.a === 'nitro') return 'power ' + fmt(1.05 * m * CFG.enginePow) + '·x^' + fmt(e) + ', final lap nitro ×' + fmt(Math.min(1.45, 1.3 + 0.03 * l));
         if (p.a === 'turbo') return 'power ' + fmt(1.25 * m) + '·x^' + fmt(e) + ', engine load counts ×' + fmt(Math.max(1, 1.3 - 0.1 * l)) + ' vs tires';
         return 'power 3·x';
       case 'design': {
@@ -726,12 +768,14 @@
         if (p.a === 'ground') return '+' + pc(g) + ' power and top speed, grip +' + pc(CFG.handling.groundGrip * ts(p) * mult(p)) + ', load ×' + fmt(Math.max(0.85, 1 - 0.03 * l)) + ' vs tires';
         if (p.a === 'aero') return '+' + pc(g * (0.4 + 0.1 * l)) + ' rising to +' + pc(g * 1.4) + ' power and top speed';
         if (p.a === 'light') return '+' + pc(0.85 * g) + ' power and top speed, load ×' + fmt(Math.max(0.7, 0.85 - 0.04 * l)) + ' vs tires';
+        if (p.a === 'armored') return '+' + pc(0.9 * g) + ' power and top speed, crashes become spins (you keep racing)';
         return '+' + pc((0.8 + 0.1 * l) * g) + ' power and top speed, more upgrade offers (+' + pc(CFG.rdBias * l) + ')';
       }
       case 'tires': {
         var t = tireInfo(p), s = 'limit ' + Math.round(t.limit);
         if (p.a === 'hard') s += ', wear −' + pc(1 - t.evMul);
         if (p.a === 'soft') s += ', +' + pc(t.bonus - 1) + ' power';
+        if (p.a === 'allweather') s += ', ignores wet and icy grip penalties';
         if (p.a === 'reinforced') s += ', no crashes, keeps ' + pc(t.keep) + ' speed through pit stops';
         return s;
       }
@@ -741,12 +785,14 @@
         var gp = 'grip +' + pc(h.grip) + ', ';
         if (p.a === 'stabilizer') return gp + 'pilot floor +' + pc(h.floor) + ', crashes −' + pc(1 - h.crashMul) + ', wear −' + pc(1 - h.evMul);
         if (p.a === 'traction') return gp + 'no extra wear when shaky, tire wear −' + pc(1 - h.evMul) + (h.floor ? ', pilot floor +' + pc(h.floor) : '');
+        if (p.a === 'drift') return gp + 'tire wear −' + pc(1 - h.evMul) + ', shaky costs no speed, +' + pc(h.drift - 1) + ' power when pushing near the limit';
         return gp + 'pilot top roll +' + pc(h.top) + ', crashes −' + pc(1 - h.crashMul);
       }
       case 'pilot': {
         var pi = pilotInfo(p), L = pilotLv(p), r = pc(Math.max(0, pi.lo)) + '–' + pc(Math.min(1, pi.hi));
         if (p.t === 0) return 'roll 30% fixed';
         if (p.a === 'veteran') return 'steady roll ' + r + ', crashes −' + pc(1 - pi.crashMul) + ', wear −' + pc(1 - pi.wear(1));
+        if (p.a === 'prodigy') return 'rookie roll ' + r + ', learns twice as fast (gets better every race)';
         if (p.a === 'wildcard') return 'wild roll ' + r + ', power +' + pc(pi.pow(1) - 1) + ', wear +' + pc(pi.wear(1) - 1) + ', crashes ×' + fmt(pi.crashMul);
         return 'roll ' + r + ', wear −' + pc(1 - pi.wear(1)) + ' early, starts at ' + pc(pi.pow(0)) + ' power' + (p.u ? ', +' + pc(0.03 * L.u) + ' late' : '');
       }
@@ -754,6 +800,8 @@
         var mk = marketingInfo(p), s2 = '+' + fmt(mk.credits) + ' cr/round, ' + mk.rerolls + ' reroll' + (mk.rerolls > 1 ? 's' : '');
         if (p.a === 'sponsor') s2 += ', +' + mk.bonus + ' cr signing bonus';
         if (p.a === 'scouts') s2 += ', +' + mk.extra + ' shop offer' + (mk.extra > 1 ? 's' : '') + ', ' + pc(mk.find) + ' of offers are copies of your parts';
+        if (p.a === 'bookie') s2 += ', bets on you: podium +' + Math.round(CFG.bookie[0] * mk.bet) + ' cr, outside top 5 −' + Math.round(CFG.bookie[1] * mk.bet) + ' cr';
+        if (p.a === 'pitcrew') s2 += ', pit stops keep +' + pc(mk.pit) + ' speed, punctures +' + pc(mk.pit * 0.5);
         if (p.a === 'brand') s2 += ', fans: pilot floor +' + pc(mk.fans) + ', crowd up to +' + pc(mk.crowd) + ' power when trailing, +' + fmt(mk.prize) + ' cr per point scored';
         return s2;
       }

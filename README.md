@@ -2,7 +2,13 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.12)
+## Changes in this version (v0.12b)
+
+- New archetypes: Nitro engine (final-lap burst x1.3+), Armored design (0.9x bonus, crashes and spin-outs become 'bounce' spins), All-weather tires (ignore circuit grip and spin penalties, limit x0.95), Drift kit handling (shaky costs no speed, power bonus near the limit, less wear), Prodigy pilot (starts below, gains 2 xp per race, roll +0.02 per xp up to +0.16), Bookie marketing (podium +6 cr/tier, outside top 5 or crash -2 cr/tier, paid next shop), Pit crew deal marketing (pit stops keep +15-40% momentum, punctures half that).
+- Handling adds power (+1% per effective tier, max 8%); pilots build momentum 2% faster per effective tier. Engines x1.08 power, x1.1 tire wear. Round 1 +4 credits (`CFG.startBonus`).
+- Lap lengths recalibrated. Measured (1500 championships): expert 28% win / 59% podium, seasoned 20% / 44%, beginner 2%; champion build variety 57% (was 27%); decided by round 3: 20%. Popular among champions: Drift kit 61%, Opportunist 53%, Pit crew 50%, Nitro 45%. Skipping marketing still costs nothing.
+
+## Previous version (v0.12)
 
 - **Circuits**: `AB.CIRCUITS` (10) with shape points, colours, home announcer and gameplay `fx` (grip, top, wear, turn, puncture, power + turboImmune, spread, pitKeep, crowd). `calendarOf(seed)` draws 9 different ones per championship; `circuitOf(run, round)`. Effects apply in `prepareCar(build, { circuit })`; the race, forecast and metrics pass it. Recorded rivals don't know the calendar.
 - Shop: next circuit with its effects, plus the one after (name and theme only). Race header, track drawing, scenery and announcer follow the circuit.
