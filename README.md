@@ -2,7 +2,18 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.6)
+## Changes in this version (v0.7)
+
+- **Handling events**: each step (from round 2) a car is steady, shaky or out of control, set by its speed share of the round's top speed vs its grip. Shaky/out: top speed x0.85, half acceleration, tire wear x1.3 (Traction: no extra wear). Out of control: 6% spin-out crash chance (x crash modifiers). Grip: stock 0.55, Handling +0.12 per effective tier (Stabilizer x1.2, Traction x1, Setup x0.7), Ground effect design +0.15 x tier scale. Knobs in `CFG.handling`.
+- **Upgrades scale with tier** (`CFG.upgradeMult` per tier): T1 x1.3/1.6/2.0 ... T4 x1.5/2.5/4.0; T1 engines x1.3/1.5/1.8 (`CFG.engineT1Mult`).
+- **Scouts** find copies of parts you own (12% + 6% per perk level, max 40% of offers). **Brand**: fans raise the pilot's lowest roll (5% per perk level, max 15%), crowd adds power when trailing in the standings (5% per perk level x how far behind, max 15%), prize money kept; shop-quality bonus removed.
+- **What's new** box in the main menu, fed by `CHANGELOG` in engine.js (add an entry when bumping VERSION).
+- Shop: Grip word (STEADY/OK/SHAKY/WILD) in the pinned bar; power-curve sparkline on engines and designs. Race: handling state in the gauge, ≈ / ! marks in the list.
+- Thresholds recalibrated; old saves are discarded.
+
+Measured (`node metrics.js 1000 2026 full`): expert win 25% / podium 62% (was 21/49), seasoned 15/45, beginner 2/10; decided by round 3: 20% (was 26%); skipping handling now costs (win 7% vs 15%); careers ending on a 2+ star T1 engine 4% (was 16%). Skipping marketing still costs little.
+
+## Previous version (v0.6)
 
 - **Pinned shop bar**: round, credits, rerolls, cars, pace and tire risk stay at the top while you scroll the shop.
 - **F1 points**: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1; a crash scores 0.
@@ -50,3 +61,15 @@ Prints calibrated thresholds, crash rates by round, archetype win rates, upgrade
 - `CFG.ramp`, `CFG.fade`: how fast new tiers enter the shop and old ones fade
 - `CFG.shopSize`: offers per shop (5)
 - `CFG.pilotSpread`: 1 = pilot ranges from the design doc, lower = less luck
+
+## Balance metrics
+
+`node metrics.js 2000 2026` prints three groups:
+
+- **Suspense**: leader changes per championship, the round the champion takes the lead for good, and standings churn (average places moved per team per round).
+- **Meta quality**: how many different core builds (engine / design / tires archetypes) champions really spread over (effective count, from entropy), plus the most dominant archetype per slot among champions.
+- **Challenge**: championship results when a beginner bot (buys the shiniest affordable part, ignores tires, never upgrades, rerolls or locks) or a seasoned bot (knows every number, low noise) plays as "the player" against the normal rival field.
+
+## To-do for v0.7
+
+- Shop: a small sparkline per part showing its archetype's shape over the race (e.g. Sprinter strong early and flattening, Endurance slow then steep, Aero rising).

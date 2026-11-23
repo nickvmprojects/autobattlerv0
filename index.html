@@ -63,6 +63,7 @@
   .wbar i { position:absolute; top:0; bottom:0; width:2px; background:#0e1116; }
   .wrow { display:flex; justify-content:space-between; font-size:13px; }
   .wlog { font-size:12.5px; min-height:18px; }
+  .r-spin { color:var(--bad); font-weight:700; }
   .r-puncture { color:var(--warn); } .r-pit { color:var(--orange); } .r-crash { color:var(--bad); font-weight:700; }
   #wear { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; }
 
@@ -90,12 +91,16 @@
   details.team .nm { flex:1; }
   details.team .pts { color:var(--acc); }
   .big-result { font-size:18px; margin:10px 0; }
+  .new { background:var(--good); color:#04200a; font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px; margin-left:6px; }
+  details.wn ul { margin:6px 0; padding-left:18px; } details.wn li { margin:3px 0; font-size:13.5px; }
+  details.wn > summary { color:var(--acc); font-weight:700; }
+  .spark { display:block; margin:3px 0 0; } .spark-l { color:var(--dim); font-size:11px; }
 </style>
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.6"></script>
-<script src="bots.js?v=0.6"></script>
+<script src="engine.js?v=0.7"></script>
+<script src="bots.js?v=0.7"></script>
 <script>
 (function () {
   'use strict';
@@ -133,12 +138,21 @@
   function slotBlock(p, canSell) {
     var sell = (canSell && p.t > 0) ? '<button class="sell" data-act="sell" data-s="' + p.s + '">Sell +' + AB.sellValue(p) + '</button>' : '';
     return '<div class="blk mine k-' + p.s + '"><div class="bh"><span><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + chips(p) + '</span>' + sell + '</div>' +
-      '<span class="pn">' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></span><div class="d">' + esc(AB.describe(p)) + '</div>' +
+      '<span class="pn">' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></span><div class="d">' + esc(AB.describe(p)) + '</div>' + spark(p) +
       (AB.expText(p) ? '<div class="xp">' + esc(AB.expText(p)) + '</div>' : '') + '</div>';
   }
+  // Power curve sparkline for engines and designs: the shape of the part over steps 1-12 (each curve scaled to its own peak).
+  function spark(p) {
+    if (p.t === 0 || (p.s !== 'engine' && p.s !== 'design')) return '';
+    var f = p.s === 'engine' ? AB.engineFn(p) : AB.designFn(p), v = [], mx = 0, i;
+    for (i = 1; i <= 12; i++) { v.push(f(i)); mx = Math.max(mx, v[i - 1]); }
+    var pts = v.map(function (y, k) { return (k * 120 / 11).toFixed(1) + ',' + (20 - 18 * y / (mx || 1)).toFixed(1); }).join(' ');
+    return '<svg class="spark" width="120" height="22" viewBox="0 -1 120 23"><polyline fill="none" stroke="var(--k)" stroke-width="2" points="' + pts + '"/></svg><span class="spark-l">' + (p.s === 'engine' ? 'power' : 'bonus') + ' over the race</span>';
+  }
   var RISK_COL = { LOW: '#3fb950', MEDIUM: '#f0c000', HIGH: '#ff7b2e', EXTREME: '#f85149' };
+  var GRIP_COL = { STEADY: '#3fb950', OK: '#a3d535', SHAKY: '#ff7b2e', WILD: '#f85149' };
   function forecastHTML() {
-    var f = AB.forecast(run.build, run.round), mine = f.mid.fin ? f.mid.x : 99, faster = 0, n = 0;
+    var f = AB.forecast(run.build, run.round, { behind: AB.playerBehind(run) }), mine = f.mid.fin ? f.mid.x : 99, faster = 0, n = 0;
     run.field.forEach(function (c) {
       if (c.player || !c.alive) return;
       var o = AB.forecast(c.career.builds[run.round - 1], run.round);
@@ -146,8 +160,8 @@
     });
     var pace = !n ? '' : faster >= n * 2 / 3 ? 'front of the field' : faster >= n / 3 ? 'midfield' : 'back of the field';
     var trouble = { LOW: 'should hold up fine', MEDIUM: 'might give you a problem', HIGH: 'will probably give you trouble', EXTREME: 'could easily end your race' }[f.risk];
-    return { line: '<div class="fline">Pace <b>' + pace + '</b> · Tire risk <b style="color:' + RISK_COL[f.risk] + '">' + f.risk + '</b></div>',
-      detail: '<div class="fc">Your tires ' + trouble + '.' + (f.overheat ? ' <span style="color:#f85149">At full push they won’t last the whole race.</span>' : '') + ' <span class="dim">Pace assumes your tires hold.</span></div>' };
+    return { line: '<div class="fline">Pace <b>' + pace + '</b> · Tires <b style="color:' + RISK_COL[f.risk] + '">' + f.risk + '</b> · Grip <b style="color:' + GRIP_COL[f.grip] + '">' + f.grip + '</b></div>',
+      detail: '<div class="fc">Your tires ' + trouble + '.' + (f.overheat ? ' <span style="color:#f85149">At full push they won’t last the whole race.</span>' : '') + ' ' + { STEADY: 'Your handling keeps the car steady.', OK: 'The car wobbles now and then near top speed.', SHAKY: 'The car gets shaky near top speed: better Handling would help.', WILD: 'The car fights you near top speed and may spin out: get Handling!' }[f.grip] + ' <span class="dim">Pace assumes your tires hold.</span></div>' };
   }
   function standingsTable() {
     var st = AB.standings(run), h = '<table><tr><th>#</th><th>Team</th><th class="n">Pts</th></tr>';
@@ -158,6 +172,16 @@
   }
 
   // ---------- start screen ----------
+  var SEEN_KEY = 'ab_seen_version';
+  function whatsNew() {
+    var seen = null; try { seen = localStorage.getItem(SEEN_KEY); localStorage.setItem(SEEN_KEY, AB.VERSION); } catch (e) {}
+    var h = '';
+    AB.CHANGELOG.forEach(function (c, i) {
+      h += '<details class="wn"' + (i === 0 ? ' open' : '') + '><summary>' + (i === 0 ? 'What’s new in v' : 'v') + esc(c.v) + (i === 0 && seen !== AB.VERSION ? '<span class="new">New!</span>' : '') + '</summary><ul>' +
+        c.items.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></details>';
+    });
+    return h;
+  }
   function showStart() {
     var s = loadStats(), saved = readSave();
     var avgRace = s.raceN ? (s.placeSum / s.raceN).toFixed(2) : '-', avgChamp = s.champN ? (s.champSum / s.champN).toFixed(2) : '-';
@@ -165,12 +189,14 @@
       '<p class="dim">Build a racing team out of six math functions, then race 9 rounds against 9 recorded rival cars. The last-placed team is cut after rounds 2, 4, 6 and 8.</p>';
     if (saved) h += '<button class="big" data-act="resume" style="background:var(--good);border-color:var(--good);color:#04200a">Resume championship</button>';
     h += '<button class="' + (saved ? '' : 'big') + '" data-act="new" style="width:100%">New Championship</button>' +
+      whatsNew() +
       '<details><summary>How it works</summary>' +
       '<p>Each round: shop, then race. Every car adds its output each step; first to the finish line total wins.</p>' +
       '<p><b style="color:var(--engine)">Engine</b> makes power, <b style="color:var(--design)">Design</b> multiplies it, <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b style="color:var(--handling)">Handling</b> and <b style="color:var(--pilot)">Pilot</b> shape the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
-      '<p>Every car has a top speed, and builds decide how fast it gets there. Tires wear as you push the engine, and the more worn they are, the likelier trouble gets: a puncture costs half your speed, a blowout sends you to the pits for fresh tires (you restart slowly), and a crash ends your race. The shop forecast tells you your pace and tire risk.</p>' +
+      '<p>Every car has a top speed, and builds decide how fast it gets there. Tires wear as you push the engine, and the more worn they are, the likelier trouble gets: a puncture costs half your speed, a blowout sends you to the pits for fresh tires (you restart slowly), and a crash ends your race.</p>' +
+      '<p>Near top speed the car needs grip. Without enough, it gets shaky (slower, harder on tires) or even spins out. Handling parts and a Ground effect design add grip. The shop forecast tells you your pace, tire risk and grip.</p>' +
       '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars, for 75% of its price, and keeps its experience. Upgraded parts season every race and grow; pilots always gain experience. Buying a different part for a slot trades the old one in for half of what you paid. You can also sell a part for half of what you paid.</p>' +
-      '<p><b style="color:var(--marketing)">Marketing</b>: Sponsors pay the most credits and a signing bonus, Scouts add shop offers and rerolls, Brand improves shop tiers and pays prize money for every point you score.</p>' +
+      '<p><b style="color:var(--marketing)">Marketing</b>: Sponsors pay the most credits and a signing bonus, Scouts add shop offers and rerolls and find copies of parts you own (upgrades), Brand brings fans (a better worst pilot roll), a crowd that cheers harder the further behind you are, and prize money for every point you score.</p>' +
       '<p>Lock the shop to keep its offers for next round (free, unlock any time).</p>' +
       '<p>Points (F1 style): 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. A crash scores 0. Your game saves itself after every shop action.</p></details>' +
       '<h2>Your stats</h2><table>' +
@@ -201,7 +227,7 @@
       var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
       h += '<div class="blk shop k-' + off.s + '"><div class="bh"><span><span class="sn">' + AB.SLOT_NAME[off.s] + '</span>' + chips(shown) + '</span></div>' +
         '<span class="pn">' + esc(AB.partName(shown)) + '<span class="star">' + AB.stars(shown) + '</span></span>' +
-        '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
+        '<div class="d">' + esc(AB.describe(shown)) + '</div>' + spark(shown) + tag +
         '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : k.cost < 0 ? 'Swap · get ' + (-k.cost) + ' cr' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
     });
     h += '<div class="row"><button class="lock' + (run.locked ? ' on' : '') + '" data-act="lock">' + (run.locked ? '🔒 Locked' : '🔓 Lock shop') + '</button>' +
@@ -252,7 +278,7 @@
   function carState(row, w) {
     var r = row.res, tt = r.totals, L = tt.length - 1, s = w.s, i0 = Math.min(s, L), i1 = Math.min(s + 1, L);
     var a = tt[i0], b = tt[i1], wa = r.wr[i0], wb = r.wr[i1];
-    return { s: s, L: L, tot: a + (b - a) * w.fr, code: r.st[i0], wear: wa + (wb - wa) * w.fr };
+    return { s: s, L: L, tot: a + (b - a) * w.fr, code: r.st[i0], hs: r.hs[i1], wear: wa + (wb - wa) * w.fr };
   }
   function zoneOf(wear) { var z = 0; CFG.wear.marks.forEach(function (m) { if (wear >= m) z++; }); return wear >= 100 ? 5 : z; }
   function trackHTML(rows, T, w) {
@@ -278,7 +304,7 @@
     var list = rows.map(function (row) {
       var st = carState(row, w), r = row.res, p = Math.min(1, st.tot / T), mark = ' ';
       var fin = r.status === 'fin' && st.s >= st.L, dead = r.status === 'crash' && st.s >= st.L;
-      if (fin) mark = '✓'; else if (dead) mark = 'X'; else if (st.code === 1) mark = '~'; else if (st.code === 2) mark = 'P';
+      if (fin) mark = '✓'; else if (dead) mark = 'X'; else if (st.code === 1) mark = '~'; else if (st.code === 2) mark = 'P'; else if (st.hs === 2) mark = '!'; else if (st.hs === 1) mark = '≈';
       return { row: row, p: p, mark: mark, fin: fin, dead: dead, wear: st.wear };
     });
     list.sort(function (x, y) { return (y.fin ? 1 : 0) - (x.fin ? 1 : 0) || (x.fin && y.fin ? x.row.pos - y.row.pos : y.p - x.p); });
@@ -287,14 +313,15 @@
       return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + esc(pad(car.name, 17)) + padL(Math.round(it.p * 100), 4) + '% ' + it.mark + ' ' + dot;
     }).join('\n');
   }
-  var EV_TXT = { puncture: 'Puncture: lost half your speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out' };
-  var EV_SHORT = { puncture: 'puncture', pit: 'pit stop', crash: 'crash' };
+  var EV_TXT = { puncture: 'Puncture: lost half your speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
+  var EV_SHORT = { puncture: 'puncture', pit: 'pit stop', crash: 'crash', spin: 'spun out' };
   function tireWord(wear) { return wear >= 100 ? 'OVERHEATING' : wear >= 80 ? 'critical' : wear >= 60 ? 'risky' : wear >= 40 ? 'worn' : wear >= 20 ? 'used' : 'fresh'; }
   function wearHTML(me, w) { // the player's live tire gauge: no numbers to decode, only what happened
     var st = carState(me, w), wear = Math.max(0, st.wear), z = zoneOf(wear);
     var shown = me.res.events.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
     var log = shown.map(function (q) { return '<div class="r-' + q.type + '">' + EV_TXT[q.type] + '</div>'; }).join('');
-    return '<div class="wrow"><b>Your tires</b><span style="color:' + ZONE[z] + ';font-weight:700">' + tireWord(wear) + '</span></div>' +
+    var hw = st.s >= st.L ? '' : ['<span style="color:#3fb950">steady</span>', '<span style="color:#ff7b2e;font-weight:700">shaky</span>', '<span style="color:#f85149;font-weight:700">OUT OF CONTROL</span>'][st.hs || 0];
+    return '<div class="wrow"><b>Handling</b>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><b>Your tires</b><span style="color:' + ZONE[z] + ';font-weight:700">' + tireWord(wear) + '</span></div>' +
       '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div></div>' +
       '<div class="wlog">' + log + '</div>';
   }
@@ -305,7 +332,7 @@
       var res = r.res, txt = res.status === 'fin' ? 'x ' + res.x.toFixed(1) : res.status === 'crash' ? 'CRASH x' + res.x : 'cap';
       var evs = res.events.map(function (q) { return '<span class="r-' + q.type + '">' + EV_SHORT[q.type] + '</span>'; });
       h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm"><span style="color:' + teamColor(r.car) + ';font-weight:700">' + esc(label(r.car)) + '</span> ' + esc(r.car.name) + '</span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
-        '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%.</p><p>Tires: ' + (evs.length ? evs.join(' · ') : 'no trouble') + '</p>';
+        '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%.' + (res.shaky + res.wild ? ' Shaky for ' + (res.shaky + res.wild) + ' step' + (res.shaky + res.wild > 1 ? 's' : '') + (res.wild ? ' (' + res.wild + ' out of control)' : '') + '.' : '') + '</p><p>Trouble: ' + (evs.length ? evs.join(' · ') : 'none') + '</p>';
       AB.SLOTS.forEach(function (s) { h += partLine(r.build[s]); });
       h += '</details>';
     });
@@ -320,7 +347,7 @@
     var rows = rep.rows, sch = schedule(rows, rep.T), f = 0, me = rows.filter(function (r) { return r.car.player; })[0];
     $.innerHTML = '<div class="top"><b>Round ' + rep.round + ' · Race</b><span class="dim">Finish line ' + rep.T + '</span></div>' +
       '<pre id="track"></pre><div id="wear"></div><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
-      '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear, green fresh to red worn out. Track tint: yellow ~ puncture, orange P pit stop, red X crash, ✓ finished.</p>';
+      '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear, green fresh to red worn out. Track tint: yellow ~ puncture, orange P pit stop, red X crash, ✓ finished. In the list ≈ shaky, ! out of control.</p>';
     var tEl = document.getElementById('track'), lEl = document.getElementById('live'), wEl = document.getElementById('wear');
     var avail = tEl.clientWidth - 10; // fit the 49-column track to this phone's width
     tEl.style.fontSize = Math.max(8, Math.min(13, avail / (track.W * 0.6))).toFixed(1) + 'px';
