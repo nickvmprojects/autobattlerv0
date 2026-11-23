@@ -2,7 +2,13 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.10b)
+## Changes in this version (v0.11)
+
+- Night Circuit look (index.html rewrite): canvas-drawn circuit from a Catmull-Rom spline through each circuit's points (`HOUSE` in index.html), smooth requestAnimationFrame playback, sparks/smoke/fire/pit tag, start-light gantry.
+- Live racer view (canvas strip following you and the 3 nearest cars), TV timing tower, talking announcer heads (inline SVG, CSS mouth animation, off with reduced motion) with catchphrases and a full call sheet after the race.
+- Shop cards: slot icons, pips per stat normalised against every part of the slot (`STATDEF` in index.html), vs-your-part line. engine.js exports tireInfo/handlingInfo/pilotInfo/loadFactor for this.
+
+## Previous version (v0.10b)
 
 - Rerolls: every marketing part +3 (`CFG.rerollBonus`), stock marketing +2 (`CFG.rerollStock`): stock 3, marketing parts 4-5.
 - Sponsor signing bonus 70% lower (`CFG.sponsorBonus` 1.5 per tier, rounded).

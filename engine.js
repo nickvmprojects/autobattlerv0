@@ -60,9 +60,16 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.10b';
+  var VERSION = '0.11';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.11', items: [
+      'New look: Night Circuit. Floodlit track drawn for real, cars glide around it, sparks for punctures, smoke for spins, fire for crashes, a pit tag for pit stops.',
+      'Start lights on a gantry over the track, then GO!',
+      'Live racer view: a side-on strip that follows your car and the three cars nearest to you.',
+      'TV-style timing tower with flags, gaps, tire wear dots and trouble icons.',
+      'Talking announcers with their own faces and catchphrases. The full call sheet stays after the race.',
+      'Shop overhaul: slot icons, pips showing how a part compares with every part of its slot (red pips are a cost), and a vs-your-part line.'] },
     { v: '0.10b', items: [
       'More rerolls: every marketing part gives 3 extra rerolls per shop, and the stock Lemonade Stand gives 2 extra.',
       'Sponsor signing bonus cut by 70% (now about 1.5 credits per tier).'] },
@@ -707,7 +714,7 @@
   }
 
   return {
-    CHANGELOG: CHANGELOG, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
+    CHANGELOG: CHANGELOG, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
     CFG: CFG, SLOTS: SLOTS, SLOT_NAME: SLOT_NAME, ARCH: ARCH, archInfo: archInfo,
     mulberry32: mulberry32, gauss: gauss, pickWeighted: pickWeighted,
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,
