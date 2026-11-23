@@ -64,7 +64,8 @@
       'Team flags: every rival team flies a flag (mostly countries, a few odd ones) that stays with the team. Pick your own flag on the start screen.',
       'Start lights: five red lights, lights out, GO!',
       'Race announcer: calls the big moments as they happen (lead changes, podium fights, crashes, trouble at the front, the final lap and the win). Your moments are in green. The full call sheet stays after the race.',
-      'Your tire log shows the lap and race time of each event.'] },
+      'Your tire log shows the lap and race time of each event.',
+      'Easier to follow: your car is always drawn on top in a green box, your row is highlighted, and the track no longer tints cars for trouble.'] },
     { v: '0.8', items: [
       'Races are 3 laps. Tires cool a little at each lap line (wear drops 40%, never a full reset).',
       'New trouble: spun around. The car turns the wrong way for a moment and loses ground, but keeps racing. Crashes now mostly come from overheated tires, so they stay about as rare as before even in longer races.',

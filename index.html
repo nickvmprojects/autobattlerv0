@@ -71,7 +71,8 @@
   #track { line-height:1.12; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 4px; text-align:center; display:block; overflow:hidden; }
   #live { font-size:12.5px; line-height:1.45; }
   .c { font-weight:700; }
-  .c.me { color:#04200a !important; background:var(--good); }
+  .c.me { color:#04200a !important; background:var(--good); outline:2px solid #b6ffc4; border-radius:2px; }
+  .lrow.me { background:#163a20; color:#d9ffe1; border-radius:4px; }
   .c.s1 { background:var(--warn); color:#000 !important; }
   .c.s2 { background:var(--orange); color:#000 !important; }
   .c.s3 { background:var(--bad); color:#000 !important; }
@@ -307,9 +308,9 @@
       var st = carState(row, w), cells = track.lanes[row.car.id % track.lanes.length], lap = T / CFG.laps, p = st.tot >= T ? 0 : (Math.max(0, st.tot) % lap) / lap;
       return { p: p, cell: cells[Math.min(cells.length - 1, Math.floor(p * cells.length))], code: st.code, car: row.car, crashed: row.res.status === 'crash' && st.s >= st.L };
     });
-    items.sort(function (x, y) { return (x.crashed ? -1 : 0) - (y.crashed ? -1 : 0) || x.p - y.p || (x.car.player ? 1 : 0) - (y.car.player ? 1 : 0); });
+    items.sort(function (x, y) { return (x.car.player ? 1 : 0) - (y.car.player ? 1 : 0) || (x.crashed ? -1 : 0) - (y.crashed ? -1 : 0) || x.p - y.p; }); // you are drawn last, always on top
     items.forEach(function (it) {
-      var cls = 'c' + (it.car.player ? ' me' : '') + (it.code ? ' s' + it.code : '');
+      var cls = 'c' + (it.car.player ? ' me' : ''); // no event tints on the track: trouble is in the list and the announcer
       grid[it.cell[2]] = '<span class="' + cls + '" style="color:' + (it.crashed ? '#f85149' : teamColor(it.car)) + '">' + (it.crashed ? 'X' : esc(label(it.car))) + '</span>';
     });
     if (lights >= 0) { // start lights in the infield
@@ -332,7 +333,8 @@
     return list.map(function (it, i) {
       var car = it.row.car, dot = it.dead ? ' ' : '<span style="color:' + ZONE[zoneOf(it.wear)] + '">●</span>';
       var lapN = Math.min(CFG.laps, 1 + Math.floor(Math.max(0, it.p) * CFG.laps));
-      return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + flagOf(car) + ' ' + esc(pad(car.name, 13)) + (it.fin || it.p >= 1 ? '    done' : ' L' + lapN + padL(Math.round(it.p * 100), 4) + '%') + ' ' + it.mark + ' ' + dot;
+      var line = padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + flagOf(car) + ' ' + esc(pad(car.name, 13)) + (it.fin || it.p >= 1 ? '    done' : ' L' + lapN + padL(Math.round(it.p * 100), 4) + '%') + ' ' + it.mark + ' ' + dot;
+      return car.player ? '<span class="lrow me">' + line + '</span>' : line;
     }).join('\n');
   }
   var EV_TXT = { turn: 'Spun around! Lost some ground', puncture: 'Puncture: lost half your speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
@@ -442,7 +444,7 @@
     var rows = rep.rows, sch = schedule(rows, rep.T), f = 0, me = rows.filter(function (r) { return r.car.player; })[0];
     $.innerHTML = '<div class="top"><b>Round ' + rep.round + ' · Race</b><span id="lapc" class="dim"></span></div>' +
       '<pre id="track"></pre><div id="ann"></div><div id="wear"></div><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
-      '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear, green fresh to red worn out. Track tint: yellow ~ puncture, orange P pit stop, purple ↺ spun around, red X crash, ✓ finished. In the list ≈ shaky, ! out of control.</p>';
+      '<p class="dim">@ in the green box is you; every rival keeps its team color, X is a crash. In the list: ~ puncture, P pit stop, ↺ spun around, ≈ shaky, ! out of control, ✓ finished. Dots show tire wear, green fresh to red worn out.</p>';
     var tEl = document.getElementById('track'), lEl = document.getElementById('live'), wEl = document.getElementById('wear');
     var avail = tEl.clientWidth - 10; // fit the 49-column track to this phone's width
     tEl.style.fontSize = Math.max(8, Math.min(13, avail / (track.W * 0.6))).toFixed(1) + 'px';
