@@ -2,7 +2,13 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.11)
+## Changes in this version (v0.12)
+
+- **Circuits**: `AB.CIRCUITS` (10) with shape points, colours, home announcer and gameplay `fx` (grip, top, wear, turn, puncture, power + turboImmune, spread, pitKeep, crowd). `calendarOf(seed)` draws 9 different ones per championship; `circuitOf(run, round)`. Effects apply in `prepareCar(build, { circuit })`; the race, forecast and metrics pass it. Recorded rivals don't know the calendar.
+- Shop: next circuit with its effects, plus the one after (name and theme only). Race header, track drawing, scenery and announcer follow the circuit.
+- Measured (800 championships, random calendars): seasoned 19% win / 47% podium, expert 21% / 50%.
+
+## Previous version (v0.11)
 
 - Night Circuit look (index.html rewrite): canvas-drawn circuit from a Catmull-Rom spline through each circuit's points (`HOUSE` in index.html), smooth requestAnimationFrame playback, sparks/smoke/fire/pit tag, start-light gantry.
 - Live racer view (canvas strip following you and the 3 nearest cars), TV timing tower, talking announcer heads (inline SVG, CSS mouth animation, off with reduced motion) with catchphrases and a full call sheet after the race.

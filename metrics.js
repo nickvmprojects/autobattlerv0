@@ -9,11 +9,12 @@ var lib = Bots.buildLibrary(300, SEED);
 
 // One championship: field = array of careers (index 0 is "the player"). Returns per-round standings and the result.
 function championship(field, rng) {
+  var cal = AB.calendarOf(Math.floor(rng() * 1e9));
   var cars = field.map(function (c, i) { return { i: i, c: c, pts: 0, alive: true, last: 0, el: 99 }; }), order = [];
   for (var r = 1; r <= CFG.rounds; r++) {
     var al = cars.filter(function (f) { return f.alive; });
     var bh = AB.behindOf(al.map(function (f) { return { points: f.pts }; }));
-    var res = AB.raceField(al.map(function (f) { return f.c.builds[r - 1]; }), AB.raceLen(r), rng, { vmax: AB.vmaxOf(r) }, bh.map(function (b) { return { behind: b }; }));
+    var res = AB.raceField(al.map(function (f) { return f.c.builds[r - 1]; }), AB.raceLen(r), rng, { vmax: AB.vmaxOf(r) }, bh.map(function (b) { return { behind: b, circuit: cal[r - 1] }; }));
     al.forEach(function (f, k) { f.pts += AB.pointsFor(res.pos[k], al.length, r, res.results[k].status); f.last = res.pos[k]; });
     if (CFG.eliminateAfter.indexOf(r) >= 0) { var w = al.slice().sort(function (a, b) { return a.pts - b.pts || b.last - a.last; })[0]; w.alive = false; w.el = r; }
     order.push(cars.slice().sort(function (a, b) { return b.pts - a.pts || b.el - a.el || a.last - b.last; }).map(function (f) { return f.i; }));

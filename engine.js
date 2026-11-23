@@ -60,9 +60,13 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.11';
+  var VERSION = '0.12';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.12', items: [
+      'Circuits! Every championship draws 9 different tracks from a pool of 10, each with its own shape, colours, announcer and twist: wet docks, desert straights, ice, thin mountain air, a haunted oval and more.',
+      'The shop shows the next race’s circuit and its effects (your pace, tire and grip forecast already include them), plus a peek at the one after.',
+      'Each announcer has home circuits: Rocco Redline, Gill Barracuda and Duchess Purrsia.'] },
     { v: '0.11', items: [
       'New look: Night Circuit. Floodlit track drawn for real, cars glide around it, sparks for punctures, smoke for spins, fire for crashes, a pit tag for pit stops.',
       'Start lights on a gantry over the track, then GO!',
@@ -271,14 +275,22 @@
     car.crashMul = ha.crashMul * pl.crashMul;
     car.grip = H.grip + ha.grip + (de.a === 'ground' ? H.groundGrip * ts(de) * mult(de) : 0);
     car.shakyWear = b.handling.a === 'traction' && b.handling.t > 0 ? 1 : H.shakyWear;
-    car.crowd = 1 + mk.crowd * clamp((ctx && ctx.behind) || 0, 0, 1);
+    var ce = (ctx && ctx.circuit && ctx.circuit.fx) || {};
+    car.crowd = 1 + mk.crowd * (ce.crowd || 1) * clamp((ctx && ctx.behind) || 0, 0, 1);
+    // circuit effects
+    if (ce.grip) car.grip *= ce.grip;
+    if (ce.wear) { var wm = car.wearMul; car.wearMul = function (x) { return wm(x) * ce.wear; }; }
+    if (ce.power && !(ce.turboImmune && en.a === 'turbo')) { var ef = car.engine; car.engine = function (x) { return ef(x) * ce.power; }; }
+    if (ce.spread) { var mid = (car.rollLo + car.rollHi) / 2, half = (car.rollHi - car.rollLo) / 2 * ce.spread + 0.02 * (ce.spread - 1); car.rollLo = Math.max(0.05, mid - half); car.rollHi = Math.min(1, mid + half); }
+    if (ce.pitKeep) car.keep *= ce.pitKeep;
+    car.vmMul = ce.top || 1; car.turnMul = ce.turn || 1; car.punctMul = ce.puncture || 1;
     return car;
   }
 
   // ---------- events ----------
   // mix = [puncture, blowout, crash] shares; returns normalised shares for this car.
   function severity(mix, car) {
-    var p = mix[0], b = mix[1], t = mix[2], c = mix[3] * car.crashMul;
+    var p = mix[0] * (car.punctMul || 1), b = mix[1], t = mix[2] * (car.turnMul || 1), c = mix[3] * car.crashMul;
     if (car.noCrash) { b += c; c = 0; }
     var s = p + b + t + c;
     return [p / s, b / s, t / s, c / s];
@@ -291,7 +303,7 @@
   function capSpeed(v, vm) { return vm ? v / Math.pow(1 + Math.pow(v / vm, CFG.capK), 1 / CFG.capK) : v; }
   function runCar(car, T, rng, opts) {
     opts = opts || {};
-    var cap = opts.cap || CFG.capX, lite = !!opts.lite, W = CFG.wear, vm = opts.vmax || 0, H = CFG.handling;
+    var cap = opts.cap || CFG.capX, lite = !!opts.lite, W = CFG.wear, vm = (opts.vmax || 0) * (car.vmMul || 1), H = CFG.handling;
     var roll = opts.roll != null ? opts.roll : Math.max(0.02, Math.min(1, car.rollLo + rng() * (car.rollHi - car.rollLo)));
     var tot = 0, xe = 0, wear = 0, mi = 0, over = 0, show = 0, showCode = 0, shaky = 0, wild = 0, back = false;
     var lapLen = opts.lapLen || (isFinite(T) ? T / CFG.laps : 0), nextLap = lapLen || Infinity;
@@ -488,6 +500,40 @@
     { n: 'Cyan', c: '#22d3ee' }, { n: 'Blue', c: '#3b82f6' }, { n: 'Purple', c: '#a855f7' },
     { n: 'Pink', c: '#ec4899' }, { n: 'White', c: '#e5e7eb' }, { n: 'Brown', c: '#a16207' }
   ];
+  /* Circuits: every race of a championship is drawn from this pool (no repeats). fx = gameplay effects:
+   * grip (handling grip x), top (top speed x), wear (tire wear x), turn / puncture (share of those tire outcomes x),
+   * power (engine x, turboImmune: Turbo engines ignore it), spread (pilot roll range x), pitKeep (momentum kept in a pit stop x), crowd (Brand crowd x).
+   * pts, colors and decor are for drawing. text = short effect list for the shop. */
+  var CIRCUITS = [
+    { id: 'night', name: 'Night Circuit', theme: 'floodlit classic', announcer: 'guy', tag: 'Lights on · Mercy off', fx: {}, text: ['No surprises. Pure racing.'],
+      pts: [[0.28, 0.12], [0.72, 0.12], [0.93, 0.5], [0.72, 0.88], [0.28, 0.88], [0.07, 0.5]], ground: '#111829', asphalt: '#2a3042', kerb: ['#e8203a', '#eef0f6'], glow: '#ffb347', accent: '#ff9e1b' },
+    { id: 'docks', name: 'Neon Docks', theme: 'wet harbour', announcer: 'fish', tag: 'Slippery when wet', fx: { grip: 0.8, turn: 1.5 }, text: ['Wet: grip −20%', 'Spins ×1.5'],
+      pts: [[0.15, 0.2], [0.55, 0.12], [0.9, 0.25], [0.8, 0.55], [0.92, 0.85], [0.5, 0.88], [0.3, 0.7], [0.1, 0.75]], ground: '#071a24', asphalt: '#1f3340', kerb: ['#ff3db0', '#28e0ff'], glow: '#28e0ff', accent: '#28e0ff' },
+    { id: 'furnace', name: 'Furnace Strip', theme: 'desert straights', announcer: 'guy', tag: 'Hot enough to melt rubber', fx: { top: 1.15, wear: 1.25 }, text: ['Long straights: top speed +15%', 'Heat: tire wear +25%'],
+      pts: [[0.1, 0.3], [0.5, 0.2], [0.9, 0.3], [0.95, 0.5], [0.9, 0.7], [0.5, 0.8], [0.1, 0.7], [0.05, 0.5]], ground: '#2a1608', asphalt: '#4a3626', kerb: ['#ff6a00', '#ffe2b0'], glow: '#ff6a00', accent: '#ffb000' },
+    { id: 'canyon', name: 'Corkscrew Canyon', theme: 'twisty canyon', announcer: 'guy', tag: 'Left, right, regret', fx: { top: 0.85, grip: 0.9 }, text: ['Tight corners: top speed −15%', 'Grip −10%'],
+      pts: [[0.1, 0.15], [0.35, 0.3], [0.55, 0.1], [0.9, 0.2], [0.75, 0.5], [0.92, 0.85], [0.6, 0.75], [0.4, 0.9], [0.15, 0.75], [0.25, 0.45]], ground: '#1d1210', asphalt: '#3b2c28', kerb: ['#e8203a', '#f4d9b0'], glow: '#ff8a5c', accent: '#ff8a5c' },
+    { id: 'graveyard', name: 'Graveyard Oval', theme: 'haunted oval', announcer: 'cat', tag: 'Every lap a funeral', fx: { crowd: 2 }, text: ['Rowdy crowd: Brand crowd bonus ×2'],
+      pts: [[0.5, 0.1], [0.85, 0.22], [0.93, 0.5], [0.85, 0.78], [0.5, 0.9], [0.15, 0.78], [0.07, 0.5], [0.15, 0.22]], ground: '#0f1410', asphalt: '#2b3029', kerb: ['#7cff4f', '#d9d2ff'], glow: '#9b7fc4', accent: '#b08cff' },
+    { id: 'frost', name: 'Frostbite Ring', theme: 'frozen lake', announcer: 'cat', tag: 'Cold tires, colder hearts', fx: { grip: 0.7, puncture: 0.5 }, text: ['Ice: grip −30%', 'Cold rubber: punctures ×0.5'],
+      pts: [[0.12, 0.15], [0.88, 0.15], [0.9, 0.5], [0.88, 0.85], [0.58, 0.85], [0.5, 0.62], [0.42, 0.85], [0.12, 0.85]], ground: '#0c1a2a', asphalt: '#3a4c66', kerb: ['#6fd3ff', '#ffffff'], glow: '#bfe9ff', accent: '#9fe0ff' },
+    { id: 'summit', name: 'Thin Air Summit', theme: 'mountain top', announcer: 'guy', tag: 'Breathe if you can', fx: { power: 0.9, turboImmune: true }, text: ['Thin air: engine power −10%', 'Turbo engines don’t care'],
+      pts: [[0.5, 0.08], [0.72, 0.45], [0.92, 0.85], [0.5, 0.88], [0.08, 0.85], [0.28, 0.45]], ground: '#151a26', asphalt: '#363c4e', kerb: ['#e8203a', '#eef0f6'], glow: '#d6e4ff', accent: '#d6e4ff' },
+    { id: 'smokestack', name: 'Smokestack Yard', theme: 'industrial', announcer: 'fish', tag: 'Breathe the fumes', fx: { pitKeep: 0.6 }, text: ['Slow pit lane: pit stops cost more'],
+      pts: [[0.08, 0.12], [0.6, 0.12], [0.7, 0.3], [0.92, 0.3], [0.92, 0.88], [0.08, 0.88]], ground: '#14110e', asphalt: '#3a342c', kerb: ['#ffd23f', '#1b1f2b'], glow: '#ff9e1b', accent: '#ffd23f' },
+    { id: 'sewer', name: 'Sewer Run', theme: 'tunnels', announcer: 'fish', tag: 'Hold your nose', fx: { spread: 1.6 }, text: ['Dark tunnels: pilot rolls swing wider'],
+      pts: [[0.1, 0.2], [0.4, 0.1], [0.6, 0.3], [0.9, 0.15], [0.9, 0.55], [0.65, 0.5], [0.75, 0.85], [0.35, 0.9], [0.3, 0.6], [0.08, 0.65]], ground: '#0d150d', asphalt: '#2c3a2a', kerb: ['#7cff4f', '#3b3040'], glow: '#7cff4f', accent: '#7cff4f' },
+    { id: 'palace', name: 'Velvet Palace', theme: 'glass showroom track', announcer: 'cat', tag: 'Only the rich survive', fx: { grip: 1.2, wear: 0.8 }, text: ['Glass-smooth: grip +20%', 'Tire wear −20%'],
+      pts: [[0.2, 0.12], [0.8, 0.12], [0.62, 0.5], [0.85, 0.88], [0.15, 0.88], [0.38, 0.5]], ground: '#1a0f1f', asphalt: '#3a2a44', kerb: ['#b06bff', '#ffd6f0'], glow: '#ff7ac0', accent: '#ff7ac0' }
+  ];
+  // A championship's calendar: 9 different circuits drawn from the pool with the run's seed (so a resumed run has the same calendar).
+  function calendarOf(seed) {
+    var r = mulberry32((seed ^ 0x5bd1e995) | 0), pool = CIRCUITS.slice(), out = [];
+    while (out.length < CFG.rounds) { if (!pool.length) pool = CIRCUITS.slice(); out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]); }
+    return out;
+  }
+  function circuitOf(run, round) { if (!run.calendar) run.calendar = calendarOf(run.seed); return run.calendar[Math.min(CFG.rounds, Math.max(1, round)) - 1]; }
+
   // Team flags: mostly countries, a few odd ones. A team's flag comes from its name, so it stays with the team.
   var FLAGS = ['🇮🇹', '🇧🇷', '🇯🇵', '🇬🇧', '🇩🇪', '🇫🇷', '🇪🇸', '🇺🇸', '🇨🇦', '🇲🇽', '🇦🇷', '🇦🇺', '🇳🇱', '🇧🇪', '🇫🇮', '🇸🇪', '🇳🇴', '🇦🇹',
     '🇨🇭', '🇵🇹', '🇲🇨', '🇰🇷', '🇮🇳', '🇿🇦', '🇳🇿', '🇩🇰', '🇵🇱', '🇨🇴', '🇯🇲', '🇮🇪', '🇹🇭', '🇳🇬',
@@ -597,7 +643,8 @@
     var round = run.round, T = raceLen(round);
     var cars = run.field.filter(function (c) { return c.alive; }), behind = behindOf(cars);
     var builds = cars.map(function (c) { return cloneBuild(c.player ? run.build : c.career.builds[round - 1]); }); // clones show pre-race experience
-    var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729), { vmax: vmaxOf(round) }, behind.map(function (b) { return { behind: b }; }));
+    var circ = circuitOf(run, round);
+    var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729), { vmax: vmaxOf(round) }, behind.map(function (b) { return { behind: b, circuit: circ }; }));
     var n = cars.length, rows = [];
     cars.forEach(function (c, i) {
       var pts = pointsFor(rr.pos[i], n, round, rr.results[i].status);
@@ -605,7 +652,7 @@
       rows.push({ car: c, pos: rr.pos[i], pts: pts, res: rr.results[i], build: builds[i] });
     });
     bumpExperience(run.build);
-    var report = { round: round, T: T, n: n, rows: rows, eliminated: null, playerPos: rr.pos[0], playerPts: rows[0].pts };
+    var report = { round: round, T: T, n: n, rows: rows, eliminated: null, playerPos: rr.pos[0], playerPts: rows[0].pts, circuit: circ };
     run.history.push({ round: round, pos: rr.pos[0], pts: rows[0].pts, status: rr.results[0].status });
     run.lastPts = rows[0].pts;
     if (CFG.eliminateAfter.indexOf(round) >= 0) {
@@ -714,7 +761,7 @@
   }
 
   return {
-    CHANGELOG: CHANGELOG, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
+    CHANGELOG: CHANGELOG, CIRCUITS: CIRCUITS, calendarOf: calendarOf, circuitOf: circuitOf, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
     CFG: CFG, SLOTS: SLOTS, SLOT_NAME: SLOT_NAME, ARCH: ARCH, archInfo: archInfo,
     mulberry32: mulberry32, gauss: gauss, pickWeighted: pickWeighted,
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,

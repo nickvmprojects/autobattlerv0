@@ -116,12 +116,17 @@
   select { font:inherit; color:var(--text); background:#1d2438; border:0; padding:4px 8px; font-size:20px; }
   .big-result { font-size:22px; font-style:italic; font-weight:700; text-transform:uppercase; }
   .pl { padding:4px 0; border-bottom:1px solid var(--line); }
+  .circ { background:var(--panel); padding:8px 10px; margin:6px 0 2px; box-shadow:inset 4px 0 0 var(--c); }
+  .cnext { font-size:13px; font-weight:700; font-style:italic; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
+  .cname { font-size:22px; font-weight:700; font-style:italic; text-transform:uppercase; color:var(--c); line-height:1.05; }
+  .cfx { font-size:16px; font-weight:600; font-style:italic; }
+  .cthen { font-size:15px; font-style:italic; margin:2px 0 6px; padding:0 10px; }
 </style>
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.11"></script>
-<script src="bots.js?v=0.11"></script>
+<script src="engine.js?v=0.12"></script>
+<script src="bots.js?v=0.12"></script>
 <script>
 (function () {
   'use strict';
@@ -159,9 +164,21 @@
   function teamColor(car) { return car.player ? '#3ddc6f' : AB.colorOf(car.id).c; }
 
   // ---------- circuits (v0.11: one house circuit; later versions draw several) ----------
-  var HOUSE = { id: 'night', name: 'Night Circuit', announcer: 'guy', ground: '#111829', asphalt: '#2a3042', kerb: ['#e8203a', '#eef0f6'], glow: '#ffb347', accent: '#ff9e1b',
-    pts: [[0.28, 0.12], [0.72, 0.12], [0.93, 0.5], [0.72, 0.88], [0.28, 0.88], [0.07, 0.5]], tag: 'Lights on · Mercy off' };
-  function circuitFor(run, round) { return (AB.circuitOf && AB.circuitOf(run, round)) || HOUSE; }
+  function circuitFor(run, round) { return AB.circuitOf(run, round); }
+  // Little scenery per circuit, drawn under the track.
+  function dots(ctx, n, col, r, seed) { for (var i = 0; i < n; i++) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc((i * 61 + seed * 13) % 358, (i * 43 + seed * 7) % 250, r, 0, 7); ctx.fill(); } }
+  var DECOR = {
+    docks: function (ctx) { ctx.strokeStyle = 'rgba(40,224,255,.18)'; ctx.lineWidth = 1.5; for (var i = 0; i < 9; i++) { ctx.beginPath(); var y = 20 + i * 26; ctx.moveTo(0, y); for (var x = 0; x <= 358; x += 12) ctx.lineTo(x, y + Math.sin(x / 9 + i) * 2); ctx.stroke(); } },
+    furnace: function (ctx) { dots(ctx, 40, 'rgba(255,176,0,.18)', 1.5, 3); ctx.fillStyle = 'rgba(255,106,0,.25)'; ctx.beginPath(); ctx.arc(330, 30, 18, 0, 7); ctx.fill(); },
+    canyon: function (ctx) { ctx.fillStyle = 'rgba(120,60,40,.35)'; [[20, 200, 40], [300, 40, 30], [200, 230, 25]].forEach(function (r) { ctx.beginPath(); ctx.moveTo(r[0] - r[2], r[1] + 10); ctx.lineTo(r[0], r[1] - r[2]); ctx.lineTo(r[0] + r[2], r[1] + 10); ctx.fill(); }); },
+    graveyard: function (ctx) { ctx.fillStyle = 'rgba(217,210,255,.22)'; for (var i = 0; i < 10; i++) { var x = 30 + (i * 37) % 300, y = 30 + (i * 53) % 190; ctx.fillRect(x - 1, y - 7, 2, 12); ctx.fillRect(x - 4, y - 4, 8, 2); } },
+    frost: function (ctx) { dots(ctx, 60, 'rgba(255,255,255,.35)', 1.2, 5); },
+    summit: function (ctx) { ctx.fillStyle = 'rgba(214,228,255,.12)'; ctx.beginPath(); ctx.moveTo(0, 250); ctx.lineTo(90, 120); ctx.lineTo(160, 250); ctx.moveTo(200, 250); ctx.lineTo(300, 90); ctx.lineTo(358, 250); ctx.fill(); },
+    smokestack: function (ctx) { ctx.fillStyle = 'rgba(255,210,63,.15)'; [40, 70, 300].forEach(function (x) { ctx.fillRect(x, 150, 12, 100); }); dots(ctx, 18, 'rgba(160,160,160,.12)', 6, 2); },
+    sewer: function (ctx) { ctx.strokeStyle = 'rgba(124,255,79,.12)'; ctx.lineWidth = 4; for (var i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(70 * i + 30, 125, 40, 0, 7); ctx.stroke(); } },
+    palace: function (ctx) { ctx.strokeStyle = 'rgba(255,122,192,.15)'; ctx.lineWidth = 1; for (var i = 0; i < 12; i++) { ctx.beginPath(); ctx.moveTo(i * 32, 0); ctx.lineTo(i * 32 - 60, 250); ctx.stroke(); } }
+  };
+  var ANN_SHORT = { cat: 'Duchess Purrsia', fish: 'Gill Barracuda', guy: 'Rocco Redline' };
 
   // ---------- part stats as pips ----------
   function engineStress(p) { var f = AB.engineFn(p); return f(8) * (p.a === 'turbo' ? Math.max(1, 1.3 - 0.1 * AB.lv(p)) : 1); }
@@ -229,10 +246,10 @@
   var RISK_COL = { LOW: '#3ddc6f', MEDIUM: '#ffd23f', HIGH: '#ff9e1b', EXTREME: '#ff4d61' };
   var GRIP_COL = { STEADY: '#3ddc6f', OK: '#a3d535', SHAKY: '#ff9e1b', WILD: '#ff4d61' };
   function forecastHTML() {
-    var f = AB.forecast(run.build, run.round, { behind: AB.playerBehind(run) }), mine = f.mid.fin ? f.mid.x : 99, faster = 0, n = 0;
+    var circ = circuitFor(run, run.round), f = AB.forecast(run.build, run.round, { behind: AB.playerBehind(run), circuit: circ }), mine = f.mid.fin ? f.mid.x : 99, faster = 0, n = 0;
     run.field.forEach(function (c) {
       if (c.player || !c.alive) return;
-      var o = AB.forecast(c.career.builds[run.round - 1], run.round);
+      var o = AB.forecast(c.career.builds[run.round - 1], run.round, { circuit: circ });
       n++; if (mine < (o.mid.fin ? o.mid.x : 99)) faster++;
     });
     var pace = !n ? '' : faster >= n * 2 / 3 ? 'FRONT' : faster >= n / 3 ? 'MIDFIELD' : 'BACK';
@@ -278,7 +295,12 @@
   }
 
   // ---------- shop ----------
-  function circuitPreview() { return ''; } // filled in when circuits exist
+  function circuitPreview() {
+    var c = circuitFor(run, run.round), n = run.round < CFG.rounds ? circuitFor(run, run.round + 1) : null;
+    return '<div class="circ" style="--c:' + c.accent + '"><div class="cnext">Next race</div><div class="cname">' + esc(c.name) + '</div>' +
+      '<div class="cfx">' + c.text.map(esc).join(' · ') + '</div><div class="dim" style="font-size:14px;font-style:italic">' + esc(c.theme) + ' · announcer ' + ANN_SHORT[c.announcer] + '</div></div>' +
+      (n ? '<div class="cthen">Then: <b style="color:' + n.accent + '">' + esc(n.name) + '</b> <span class="dim">· ' + esc(n.theme) + '</span></div>' : '<div class="cthen">Final round!</div>');
+  }
   function showShop(msg, isErr) {
     var alive = run.field.filter(function (c) { return c.alive; }).length, fc = forecastHTML();
     var h = '<div class="sticky"><div class="hdr sk"><span>Round ' + run.round + '/' + CFG.rounds + ' · Shop</span><span style="font-size:16px">' + CFG.laps + ' laps</span></div>' +
@@ -337,7 +359,7 @@
       var g = ctx.createRadialGradient(p[0], p[1], 2, p[0], p[1], 46); g.addColorStop(0, c.glow + '55'); g.addColorStop(1, c.glow + '00');
       ctx.fillStyle = g; ctx.fillRect(p[0] - 46, p[1] - 46, 92, 92); ctx.fillStyle = '#ffe2b0'; ctx.beginPath(); ctx.arc(p[0], p[1], 2.5, 0, 7); ctx.fill();
     });
-    (c.decor || function () {})(ctx, tr);
+    (DECOR[c.id] || function () {})(ctx, tr);
     ctx.lineJoin = 'round';
     pathTrack(ctx, tr); ctx.lineWidth = 34; ctx.setLineDash([8, 8]); ctx.strokeStyle = c.kerb[0]; ctx.stroke();
     ctx.lineDashOffset = 8; ctx.strokeStyle = c.kerb[1]; ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
@@ -471,7 +493,7 @@
     var rows = rep.rows, sch = schedule(rows, rep.T), me = rows.filter(function (r) { return r.car.player; })[0];
     var circ = rep.circuit || circuitFor(run, rep.round), annKey = circ.announcer || 'guy', ann = ANNOUNCERS[annKey];
     var lapLen = rep.T / CFG.laps;
-    $.innerHTML = '<div class="hdr sk"><span>Round ' + rep.round + ' · ' + esc(circ.name) + '</span><span id="lapc">Lap 1/' + CFG.laps + '</span></div>' +
+    $.innerHTML = '<div class="hdr sk"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">R' + rep.round + ' · ' + esc(circ.name) + '</span><span id="lapc" style="white-space:nowrap;margin-left:8px">Lap 1/' + CFG.laps + '</span></div>' +
       '<canvas id="trk" width="716" height="500" role="img" aria-label="Race circuit with all cars"></canvas>' +
       '<div id="ann"><div class="ahead" id="ahead"><svg width="60" height="56" viewBox="0 0 60 56" role="img" aria-label="Announcer ' + esc(ann.name) + '">' + HEADS[annKey] + '</svg></div>' +
       '<div class="abox"><div class="aname">' + esc(ann.name) + ' <span id="ats"></span></div><div class="aline" id="aline">Drivers, start your engines...</div><div class="aold" id="aold"></div></div></div>' +
@@ -521,7 +543,7 @@
         lc.fillStyle = 'rgba(255,255,255,.12)'; for (var x = 62 - dash + 24; x < LW; x += 24) lc.fillRect(x, y + 9.5, 10, 1.2);
         lc.font = 'italic 700 12px "Barlow Condensed", sans-serif'; lc.textAlign = 'left'; lc.fillStyle = it.r.car.player ? '#3ddc6f' : '#eef0f6';
         lc.fillText((it.r.car.player ? 'YOU' : it.r.car.name).toUpperCase().slice(0, 11), 4, y + 14);
-        var gx = cx + (it.st.tot - my) * scale, clipped = gx < 76 || gx > LW - 14; gx = Math.max(76, Math.min(LW - 14, gx));
+        var gx = cx + (it.st.tot - my) * scale, clipped = gx < 86 || gx > LW - 14; gx = Math.max(86, Math.min(LW - 14, gx));
         var crashed = it.r.res.status === 'crash' && it.st.done, ang = it.st.code === 4 ? w.fr * Math.PI * 2 : 0;
         drawCar(lc, gx, y + 10, ang, teamColor(it.r.car), it.r.car.player, crashed);
         if (crashed) flame(lc, gx, y + 8, ms / 1000);
