@@ -2,7 +2,14 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.8)
+## Changes in this version (v0.9)
+
+- **Team flags**: rival flags come from the team name (`AB.FLAGS`, `AB.fieldFlags`), unique within a field; the player picks theirs on the start screen (saved in localStorage `ab_flag`).
+- **Start lights**: five red lights in the infield (500 ms each), then GO! as the race starts. Skip skips them too.
+- **Announcer**: a 3-line feed under the track calls the lead changing hands, podium overtakes (P2/P3), crashes, trouble for the top 3, the final lap and the win; your moments in green. After the race it shows the full list (scrollable).
+- Your tire log shows lap and race time for each event.
+
+## Previous version (v0.8)
 
 - **3-lap races**: `CFG.laps` = 3; `CFG.thresholds` are now lap lengths (race = laps x lap). Tires cool at each lap line (`CFG.lapCool` 0.4: wear x0.6, passed checks re-arm).
 - **Spun around** (new tire-check outcome): the car goes backwards for one step at half speed and keeps 85% momentum. Severity mixes are now [puncture, blowout, spun, crash]; crashes come mostly from overheated tires. Per car per race: ~1.4 punctures, 1.1 pit stops, 1.2 spins, 11% crash (13-15% in round 1).
