@@ -65,9 +65,10 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.13';
+  var VERSION = '0.13b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.13b', items: ['The announcer box keeps a fixed size so the screen no longer jumps.', 'The circuit name no longer covers the track (it is in the header).'] },
     { v: '0.13', items: [
       'Race screen reorganised: the announcer, the circuit and the track’s effects stay pinned at the top while you scroll through clear blocks: Your car, Live racer view and Timing tower.',
       'The timing tower shows the top 5 plus you; tap Show all for the full field.',
