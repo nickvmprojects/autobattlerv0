@@ -65,9 +65,11 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.12b';
+  var VERSION = '0.12c';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.12c', items: [
+      'Meet the rivals: every rival team now has its own racer, with a headshot in the timing tower, results, standings and announcer calls. 14 racers in different anime styles and moods, from smug 80s divas to a sleepy plush doll and a scarred street racer. A team keeps its racer.'] },
     { v: '0.12b', items: [
       'New archetypes, one per slot (marketing gets two): Nitro engine (final-lap burst), Armored design (crashes become spins), All-weather tires (ignore wet and ice), Drift kit handling (shaky costs no speed), Prodigy pilot (learns twice as fast), Bookie (bets on your podium) and Pit crew deal (faster pit stops).',
       'Handling now adds a little power, and better pilots build speed a little faster.',
