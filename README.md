@@ -2,7 +2,11 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.12b)
+## Changes in this version (v0.12c)
+
+- Rival portraits: 14 original anime racer girls drawn as SVG in index.html (`PORTRAITS`, `portrait(preset, teamColor, expr)`), styles 80s / 90s / 00s / doujin-shooter / chibi / plush / gritty, moods smug, angry, crazy, happy, determined, gritty, bored, sleepy. Each team keeps its racer (picked from its name, unique within a field). Shown in the timing tower, results, standings and next to announcer calls. `expr` can be overridden later for reactions.
+
+## Previous version (v0.12b)
 
 - New archetypes: Nitro engine (final-lap burst x1.3+), Armored design (0.9x bonus, crashes and spin-outs become 'bounce' spins), All-weather tires (ignore circuit grip and spin penalties, limit x0.95), Drift kit handling (shaky costs no speed, power bonus near the limit, less wear), Prodigy pilot (starts below, gains 2 xp per race, roll +0.02 per xp up to +0.16), Bookie marketing (podium +6 cr/tier, outside top 5 or crash -2 cr/tier, paid next shop), Pit crew deal marketing (pit stops keep +15-40% momentum, punctures half that).
 - Handling adds power (+1% per effective tier, max 8%); pilots build momentum 2% faster per effective tier. Engines x1.08 power, x1.1 tire wear. Round 1 +4 credits (`CFG.startBonus`).
