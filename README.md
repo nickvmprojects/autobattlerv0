@@ -2,7 +2,17 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.9)
+## Changes in this version (v0.10)
+
+- **Design = power + top speed**: race speed = capSpeed(engine x boosts x (1 + designPower x design), vmax x (1 + design)). `CFG.design` [0, .30, .45, .65, .90], `CFG.designPower` 1.
+- **Handling partners design**: stock grip 0.40, +0.18 per effective tier; every handling part cuts crashes up to 30%; handling parts cost 15% less (`CFG.handlingPrice`). Spin-out chance when out of control 2%.
+- **Tires toned down**: stock limit 50 (`CFG.stockTireLimit`), tire price +10% per tier (`CFG.tirePriceStep`), puncture keeps 65% momentum, pit stop restarts at 45%.
+- **Archetype nudges**: Sprinter 2.1, Turbo 1.35 and price factor 1.15, Aero capped at 1.4x, Lightweight 0.85, R&D 0.8+, Race setup grip 1.1 and top roll 0.06/tier, Soft limit 0.85 and +5% power, Veteran smaller bonus, Wildcard +0.14 top roll and crash x1.1, Opportunist starts at 75%.
+- Lap lengths recalibrated.
+
+Measured: seconds saved per 10 cr by the best buy at round 9: design 7.6, tires 5.7, handling 4.1, engine 3.8, pilot 3.0 (v0.9: tires 5.4, engine 3.9, design 3.7, pilot 3.2, handling 2.6). Skipping design now loses (0% wins). Crash 11% per race. Champion variety 29%; top champion picks Endurance 60%, Traction 57%, Opportunist 43%. Seasoned 14% / expert 17% wins (v0.8: 23% / 20%).
+
+## Previous version (v0.9)
 
 - **Team flags**: rival flags come from the team name (`AB.FLAGS`, `AB.fieldFlags`), unique within a field; the player picks theirs on the start screen (saved in localStorage `ab_flag`).
 - **Start lights**: five red lights in the infield (500 ms each), then GO! as the race starts. Skip skips them too.

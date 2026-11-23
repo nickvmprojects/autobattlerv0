@@ -107,8 +107,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.9"></script>
-<script src="bots.js?v=0.9"></script>
+<script src="engine.js?v=0.10"></script>
+<script src="bots.js?v=0.10"></script>
 <script>
 (function () {
   'use strict';
@@ -209,7 +209,7 @@
       whatsNew() +
       '<details><summary>How it works</summary>' +
       '<p>Each round: shop, then a 3-lap race. Every car adds its output each step; first across the line after 3 laps wins. Times are shown in seconds (one step is about 9 seconds).</p>' +
-      '<p><b style="color:var(--engine)">Engine</b> makes power, <b style="color:var(--design)">Design</b> multiplies it, <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b style="color:var(--handling)">Handling</b> and <b style="color:var(--pilot)">Pilot</b> shape the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
+      '<p><b style="color:var(--engine)">Engine</b> makes power, <b style="color:var(--design)">Design</b> adds power and raises your top speed (fast cars need <b style="color:var(--handling)">Handling</b> grip to use it), <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b style="color:var(--handling)">Handling</b> and <b style="color:var(--pilot)">Pilot</b> shape the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
       '<p>Every car has a top speed, and builds decide how fast it gets there. Tires wear as you push the engine, and the more worn they are, the likelier trouble gets: a puncture costs half your speed, a spin turns you around for a moment and costs ground, a blowout sends you to the pits for fresh tires (you restart slowly), and a crash ends your race. Crashes mostly happen when tires overheat. Tires cool a little at each lap line.</p>' +
       '<p>Near top speed the car needs grip. Without enough, it gets shaky (slower, harder on tires) or even spins out. Handling parts and a Ground effect design add grip. The shop forecast tells you your pace, tire risk and grip.</p>' +
       '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars, for 75% of its price, and keeps its experience. Upgraded parts season every race and grow; pilots always gain experience. Buying a different part for a slot trades the old one in for half of what you paid. You can also sell a part for half of what you paid.</p>' +
