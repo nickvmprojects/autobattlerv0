@@ -93,6 +93,11 @@
   details.team .nm { flex:1; }
   details.team .pts { color:var(--acc); }
   .big-result { font-size:18px; margin:10px 0; }
+  #ann { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:8px 0; font-size:13px; min-height:62px; }
+  #ann .al { margin:2px 0; } #ann .al.me { color:var(--good); font-weight:700; } #ann .t { color:var(--dim); font-size:11.5px; margin-right:6px; }
+  #ann.done { max-height:220px; overflow-y:auto; }
+  .lt-on { color:#f85149; } .lt-off { color:#3a2222; } .go { color:#3fb950; font-weight:700; }
+  select { font:inherit; color:var(--text); background:#242c38; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:18px; }
   .new { background:var(--good); color:#04200a; font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px; margin-left:6px; }
   details.wn ul { margin:6px 0; padding-left:18px; } details.wn li { margin:3px 0; font-size:13.5px; }
   details.wn > summary { color:var(--acc); font-weight:700; }
@@ -101,8 +106,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.8"></script>
-<script src="bots.js?v=0.8"></script>
+<script src="engine.js?v=0.9"></script>
+<script src="bots.js?v=0.9"></script>
 <script>
 (function () {
   'use strict';
@@ -127,6 +132,14 @@
 
   // ---------- helpers ----------
   function label(car) { return car.player ? '@' : String(car.id); }
+  var FLAG_KEY = 'ab_flag';
+  function myFlag() { try { return localStorage.getItem(FLAG_KEY) || '🏁'; } catch (e) { return '🏁'; } }
+  var flagCache = { run: null, map: null, mine: null };
+  function flagOf(car) {
+    if (flagCache.run !== run || flagCache.mine !== myFlag()) flagCache = { run: run, mine: myFlag(), map: AB.fieldFlags(run.field, myFlag()) };
+    return flagCache.map[car.id] || '';
+  }
+  function tname(car) { return flagOf(car) + ' ' + car.name; }
   function teamColor(car) { return AB.colorOf(car.id).c; } // fixed per team, the player is green
   function chips(p) { // tier badge (rarity colors) + archetype name
     if (p.t === 0) return '<span class="tc t0">Stock</span>';
@@ -168,7 +181,7 @@
   function standingsTable() {
     var st = AB.standings(run), h = '<table><tr><th>#</th><th>Team</th><th class="n">Pts</th></tr>';
     st.forEach(function (c, i) {
-      h += '<tr class="' + (c.player ? 'you' : '') + (c.alive ? '' : ' out') + '"><td>' + (i + 1) + '</td><td><span style="color:' + teamColor(c) + '">' + esc(label(c)) + '</span> ' + esc(c.name) + '</td><td class="n">' + c.points + '</td></tr>';
+      h += '<tr class="' + (c.player ? 'you' : '') + (c.alive ? '' : ' out') + '"><td>' + (i + 1) + '</td><td><span style="color:' + teamColor(c) + '">' + esc(label(c)) + '</span> ' + esc(tname(c)) + '</td><td class="n">' + c.points + '</td></tr>';
     });
     return h + '</table>';
   }
@@ -191,6 +204,7 @@
       '<p class="dim">Build a racing team out of six math functions, then race 9 rounds against 9 recorded rival cars. The last-placed team is cut after rounds 2, 4, 6 and 8.</p>';
     if (saved) h += '<button class="big" data-act="resume" style="background:var(--good);border-color:var(--good);color:#04200a">Resume championship</button>';
     h += '<button class="' + (saved ? '' : 'big') + '" data-act="new" style="width:100%">New Championship</button>' +
+      '<p>Your flag <select id="flagSel">' + AB.FLAGS.map(function (f) { return '<option' + (f === myFlag() ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></p>' +
       whatsNew() +
       '<details><summary>How it works</summary>' +
       '<p>Each round: shop, then a 3-lap race. Every car adds its output each step; first across the line after 3 laps wins. Times are shown in seconds (one step is about 9 seconds).</p>' +
@@ -283,7 +297,7 @@
     return { s: s, L: L, tot: a + (b - a) * w.fr, code: r.st[i0], hs: r.hs[i1], wear: wa + (wb - wa) * w.fr };
   }
   function zoneOf(wear) { var z = 0; CFG.wear.marks.forEach(function (m) { if (wear >= m) z++; }); return wear >= 100 ? 5 : z; }
-  function trackHTML(rows, T, w) {
+  function trackHTML(rows, T, w, lights) {
     var W = track.W, H = track.H, grid = [], i;
     for (i = 0; i < H * W; i++) grid.push(' ');
     track.lanes.forEach(function (cells) {
@@ -298,6 +312,11 @@
       var cls = 'c' + (it.car.player ? ' me' : '') + (it.code ? ' s' + it.code : '');
       grid[it.cell[2]] = '<span class="' + cls + '" style="color:' + (it.crashed ? '#f85149' : teamColor(it.car)) + '">' + (it.crashed ? 'X' : esc(label(it.car))) + '</span>';
     });
+    if (lights >= 0) { // start lights in the infield
+      var row = 9, c0 = 19;
+      if (lights < 6) for (i = 0; i < 5; i++) grid[row * W + c0 + i * 2] = '<span class="' + (i < lights ? 'lt-on' : 'lt-off') + '">●</span>';
+      else { grid[row * W + 22] = '<span class="go">G</span>'; grid[row * W + 23] = '<span class="go">O</span>'; grid[row * W + 24] = '<span class="go">!</span>'; }
+    }
     var out = '';
     for (i = 0; i < H; i++) out += grid.slice(i * W, (i + 1) * W).join('') + (i < H - 1 ? '\n' : '');
     return out;
@@ -313,7 +332,7 @@
     return list.map(function (it, i) {
       var car = it.row.car, dot = it.dead ? ' ' : '<span style="color:' + ZONE[zoneOf(it.wear)] + '">●</span>';
       var lapN = Math.min(CFG.laps, 1 + Math.floor(Math.max(0, it.p) * CFG.laps));
-      return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + esc(pad(car.name, 15)) + (it.fin || it.p >= 1 ? '    done' : ' L' + lapN + padL(Math.round(it.p * 100), 4) + '%') + ' ' + it.mark + ' ' + dot;
+      return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + flagOf(car) + ' ' + esc(pad(car.name, 13)) + (it.fin || it.p >= 1 ? '    done' : ' L' + lapN + padL(Math.round(it.p * 100), 4) + '%') + ' ' + it.mark + ' ' + dot;
     }).join('\n');
   }
   var EV_TXT = { turn: 'Spun around! Lost some ground', puncture: 'Puncture: lost half your speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
@@ -322,11 +341,83 @@
   function wearHTML(me, w) { // the player's live tire gauge: no numbers to decode, only what happened
     var st = carState(me, w), wear = Math.max(0, st.wear), z = zoneOf(wear);
     var shown = me.res.events.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
-    var log = shown.map(function (q) { return '<div class="r-' + q.type + '">' + EV_TXT[q.type] + '</div>'; }).join('');
+    var log = shown.map(function (q) { return '<div class="r-' + q.type + '"><span class="dim" style="font-size:11.5px">' + stamp(me, q.x - 0.5) + '</span> ' + EV_TXT[q.type] + '</div>'; }).join('');
     var hw = st.s >= st.L ? '' : ['<span style="color:#3fb950">steady</span>', '<span style="color:#ff7b2e;font-weight:700">shaky</span>', '<span style="color:#f85149;font-weight:700">OUT OF CONTROL</span>'][st.hs || 0];
     return '<div class="wrow"><b>Handling</b>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><b>Your tires</b><span style="color:' + ZONE[z] + ';font-weight:700">' + tireWord(wear) + '</span></div>' +
       '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div></div>' +
       '<div class="wlog">' + log + '</div>';
+  }
+  // Race clock for a car at time t (in steps): lap that car was on, then m:ss.
+  function stamp(row, t) {
+    var tt = row.res.totals, i = Math.max(0, Math.min(Math.floor(t), tt.length - 1));
+    var len = report.T / CFG.laps, lapN = Math.min(CFG.laps, 1 + Math.floor(Math.max(0, tt[i]) / len));
+    return 'L' + lapN + ' ' + AB.fmtTime(Math.max(0, t)).replace(/\.\d$/, '');
+  }
+  /* Announcer: scans the race and picks the big moments. Each call has t (race time in steps), text and whether it is about you. */
+  var LINES = {
+    start: ['Lights out and {A} gets the jump!', '{A} nails the start and leads!', 'What a launch from {A}!'],
+    lead: ['{A} takes the lead!', '{A} storms to the front!', 'New leader: {A}!', '{A} snatches P1 from {B}!'],
+    podium: ['{A} passes {B} for P{n}!', '{A} slips past {B} into P{n}!', '{A} muscles by {B}, P{n} now!'],
+    crash: ['Huge crash for {A}, they’re out!', 'Disaster for {A}! That’s the end of their race.', '{A} is in the wall! Race over.'],
+    spin: ['{A} loses it completely and spins out of the race!', '{A} goes off and won’t rejoin!'],
+    turn: ['{A} spins around! Precious seconds gone.', 'Whoa, {A} is facing the wrong way!', '{A} does a full 360!'],
+    puncture: ['Puncture for {A}!', '{A} has a puncture and slows down!', 'Trouble for {A}, the tire’s going down!'],
+    pit: ['Blowout! {A} limps into the pits.', '{A} pits after a blowout!', 'Rubber everywhere, {A} has to pit!'],
+    wild: ['{A} is a handful out there, fighting the wheel!', '{A} is sliding all over the place!'],
+    last: ['Final lap! {A} leads.', 'Bell lap, {A} in front!', 'One lap to go and {A} leads the way!'],
+    win: ['🏁 {A} wins it!', '🏁 Chequered flag: victory for {A}!', '🏁 {A} takes the win!'],
+    you: ['You finish P{n}.']
+  };
+  function announcer(rep) {
+    var rows = rep.rows, T = rep.T, len = T / CFG.laps, calls = [], k = rep.round * 7;
+    function nm(r) { return r.car.player ? 'your car' : flagOf(r.car) + ' ' + r.car.name; }
+    function say(t, kind, a, b, n, me) {
+      var l = LINES[kind], txt = l[(k++) % l.length].replace('{A}', a ? nm(a) : '').replace('{B}', b ? nm(b) : '').replace('{n}', n || '');
+      txt = txt.charAt(0).toUpperCase() + txt.slice(1);
+      calls.push({ t: t, txt: txt, me: !!me || (a && a.car.player) || (b && b.car.player), ts: stamp(a || rows[0], t) });
+    }
+    var steps = 0; rows.forEach(function (r) { steps = Math.max(steps, r.res.totals.length - 1); });
+    function rank(s) { // order at step s: finishers by finish time, then everyone by distance
+      return rows.slice().sort(function (a, b) {
+        var fa = a.res.status === 'fin' && a.res.x <= s, fb = b.res.status === 'fin' && b.res.x <= s;
+        if (fa && fb) return a.res.x - b.res.x; if (fa) return -1; if (fb) return 1;
+        var ta = a.res.totals[Math.min(s, a.res.totals.length - 1)], tb = b.res.totals[Math.min(s, b.res.totals.length - 1)];
+        return tb - ta;
+      });
+    }
+    function out(r, s) { return r.res.status === 'crash' && r.res.x <= s; }
+    var prev = null, lastLap = false, won = false, wildMe = false, recent = {};
+    for (var s = 1; s <= steps; s++) {
+      var o = rank(s);
+      // trouble: crashes always, other trouble for the top 3 and for you
+      rows.forEach(function (r) {
+        r.res.events.forEach(function (e) {
+          if (e.x !== s) return;
+          var top = o.indexOf(r) < 3;
+          if (e.type === 'crash' || e.type === 'spin' || top || r.car.player) say(s - 0.5, e.type, r);
+        });
+      });
+      var me = rows.filter(function (r) { return r.car.player; })[0];
+      if (me && !wildMe && me.res.hs && me.res.hs[s] === 2) { wildMe = true; say(s - 0.5, 'wild', me); }
+      if (prev) {
+        var lead = o[0];
+        if (!won && lead !== prev[0] && !out(lead, s) && !(lead.res.status === 'fin' && lead.res.x <= s)) say(s, s <= 2 ? 'start' : 'lead', lead, prev[0]);
+        for (var p = 1; p <= 2; p++) { // podium fights
+          var a = o[p], b = prev[p];
+          if (a === b || out(a, s) || out(b, s) || prev.indexOf(a) <= p) continue;
+          if ((a.res.status === 'fin' && a.res.x <= s) || (b.res.status === 'fin' && b.res.x <= s)) continue;
+          var key = a.car.id + '-' + b.car.id; if (recent[key] && s - recent[key] < 3) continue; recent[key] = s;
+          say(s, 'podium', a, b, p + 1);
+        }
+      } else if (s === 1) say(1, 'start', o[0]);
+      var leadTot = Math.max.apply(null, rows.map(function (r) { return r.res.totals[Math.min(s, r.res.totals.length - 1)]; }));
+      if (!lastLap && leadTot >= 2 * len && CFG.laps > 1) { lastLap = true; say(s, 'last', o[0]); }
+      prev = o;
+    }
+    var fin = rows.filter(function (r) { return r.res.status === 'fin'; }).sort(function (a, b) { return a.res.x - b.res.x; });
+    if (fin.length) say(fin[0].res.x, 'win', fin[0]);
+    rows.forEach(function (r) { if (r.car.player && r.res.status === 'fin' && r !== fin[0]) say(r.res.x, 'you', r, null, r.pos, true); });
+    return calls.sort(function (a, b) { return a.t - b.t; });
   }
   function resultsHTML(rep) {
     var rows = rep.rows.slice().sort(function (a, b) { return a.pos - b.pos; });
@@ -335,7 +426,7 @@
     rows.forEach(function (r) {
       var res = r.res, txt = res.status === 'fin' ? (r.pos === 1 ? AB.fmtTime(res.x) : '+' + ((res.x - best) * CFG.secPerStep).toFixed(1) + 's') : res.status === 'crash' ? 'DNF L' + Math.min(CFG.laps, 1 + Math.floor(Math.max(0, res.total) / lapLen)) : 'DNF';
       var evs = res.events.map(function (q) { return '<span class="r-' + q.type + '">' + EV_SHORT[q.type] + '</span>'; });
-      h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm"><span style="color:' + teamColor(r.car) + ';font-weight:700">' + esc(label(r.car)) + '</span> ' + esc(r.car.name) + '</span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
+      h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm"><span style="color:' + teamColor(r.car) + ';font-weight:700">' + esc(label(r.car)) + '</span> ' + esc(tname(r.car)) + '</span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
         '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%.' + (res.shaky + res.wild ? ' Shaky for ' + (res.shaky + res.wild) + ' step' + (res.shaky + res.wild > 1 ? 's' : '') + (res.wild ? ' (' + res.wild + ' out of control)' : '') + '.' : '') + '</p><p>Trouble: ' + (evs.length ? evs.join(' · ') : 'none') + '</p>';
       AB.SLOTS.forEach(function (s) { h += partLine(r.build[s]); });
       h += '</details>';
@@ -350,25 +441,37 @@
     if (!track) track = makeTrack();
     var rows = rep.rows, sch = schedule(rows, rep.T), f = 0, me = rows.filter(function (r) { return r.car.player; })[0];
     $.innerHTML = '<div class="top"><b>Round ' + rep.round + ' · Race</b><span id="lapc" class="dim"></span></div>' +
-      '<pre id="track"></pre><div id="wear"></div><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
+      '<pre id="track"></pre><div id="ann"></div><div id="wear"></div><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
       '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear, green fresh to red worn out. Track tint: yellow ~ puncture, orange P pit stop, purple ↺ spun around, red X crash, ✓ finished. In the list ≈ shaky, ! out of control.</p>';
     var tEl = document.getElementById('track'), lEl = document.getElementById('live'), wEl = document.getElementById('wear');
     var avail = tEl.clientWidth - 10; // fit the 49-column track to this phone's width
     tEl.style.fontSize = Math.max(8, Math.min(13, avail / (track.W * 0.6))).toFixed(1) + 'px';
+    var calls = announcer(rep), aEl = document.getElementById('ann'), lights = -1; // lights: -1 off, 0..5 lit, 6 = GO
     function draw() {
-      var w = where(sch, f);
+      var w = where(sch, f), now = f >= sch.total ? 1e9 : w.s + w.fr;
+      var heard = calls.filter(function (c) { return c.t <= now; });
+      aEl.innerHTML = (f >= sch.total ? heard : heard.slice(-3)).map(function (c) {
+        return '<div class="al' + (c.me ? ' me' : '') + '"><span class="t">' + c.ts + '</span>' + esc(c.txt) + '</div>';
+      }).join('') || '<div class="dim">' + (lights >= 0 && lights < 6 ? 'Drivers, start your engines...' : '') + '</div>';
       var lead = 0; rows.forEach(function (r) { lead = Math.max(lead, carState(r, w).tot); });
       document.getElementById('lapc').textContent = lead >= rep.T ? 'Finished' : 'Lap ' + Math.min(CFG.laps, 1 + Math.floor(lead / (rep.T / CFG.laps))) + '/' + CFG.laps;
-      tEl.innerHTML = trackHTML(rows, rep.T, w); lEl.innerHTML = liveHTML(rows, rep.T, w); wEl.innerHTML = wearHTML(me, w);
+      tEl.innerHTML = trackHTML(rows, rep.T, w, lights); lEl.innerHTML = liveHTML(rows, rep.T, w); wEl.innerHTML = wearHTML(me, w);
     }
     function finish() {
-      clearInterval(timer); timer = null; f = sch.total; draw();
+      clearInterval(timer); timer = null; lights = -1; f = sch.total; draw(); aEl.className = 'done'; aEl.scrollTop = aEl.scrollHeight;
       document.getElementById('ctl').style.display = 'none';
       document.getElementById('after').innerHTML = resultsHTML(rep);
     }
     showRace.skip = finish;
-    draw();
-    timer = setInterval(function () { f++; if (f >= sch.total) finish(); else draw(); }, FRAME_MS);
+    // Start lights: one red light every 500 ms, then lights out and GO (shown for the first moments of the race).
+    lights = 0; draw();
+    timer = setInterval(function () {
+      lights++; draw();
+      if (lights >= 6) {
+        clearInterval(timer); var goFrames = 8;
+        timer = setInterval(function () { if (goFrames-- <= 0) lights = -1; f++; if (f >= sch.total) finish(); else draw(); }, FRAME_MS);
+      }
+    }, 500);
   }
 
   // ---------- end of run ----------
@@ -440,6 +543,9 @@
       window.scrollTo(0, 0);
     }
   };
+  $.addEventListener('change', function (e) {
+    if (e.target.id === 'flagSel') { try { localStorage.setItem(FLAG_KEY, e.target.value); } catch (er) {} }
+  });
   $.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
     if (!b || b.disabled) return;
