@@ -2,19 +2,18 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.4)
+## Changes in this version (v0.5)
 
-- **Tire wear meter** replaces the stress-based tire events. Wear fills each step; crossing 20/40/60/80% forces a roll (30/40/50/60%) for puncture, blowout or crash, nastier at each mark. Past 100% it rolls every step at 30%.
-- Live wear bar for you with a roll log, wear-colored dots next to every rival, and a **tire forecast** in the shop.
-- Race pacing: early steps are quick, late steps slow, with slow motion at events and your milestone rolls. Skip button stays.
-- Upgrades: multipliers back to x1.5 / x2.5 / x4. Archetype perks scale by tier (T1 weak, T4 strong). Upgraded parts **season**: they grow a little every race you keep them. Upgrading keeps experience; replacing or selling resets it.
-- Pilots always gain experience and their buffs grow. Veteran, Wildcard and Opportunist have new base and upgrade buffs.
-- Slower tier ramp in the shop (tiers still unlock every round).
-- 9 fixed team colors, one per rival; the player is green.
-- Every part has a silly name (archetype and tier in small text underneath).
-- Thresholds recalibrated; old saves are discarded.
+- **Trade-in**: buying a different part for a slot gives back half of what you paid for the old one, right away. The shop shows the trade-in and the net price.
+- **Upgrades cost 75%** of the part's price (keeps upgrading attractive next to cheaper tier jumps).
+- **Top speed**: every round has a soft top speed (`CFG.vmax`). Weak cars barely feel it, strong cars level off near it, so no car rockets across the track late in the race.
+- **Tire trouble costs momentum** (each car's engine runs on its own step count): a puncture halves it, a blowout is a **pit stop** (fresh tires, wear back to 0, restart from 30% momentum; Reinforced tires keep more), a crash ends the race.
+- Retuned: wear rate 36, harsher crash mix at high wear, Sprinter/Endurance/Opportunist rebalanced for the speed cap, stock tires a bit tougher, thresholds recalibrated.
+- **Clearer gauges**: no more percentages for checks. The race gauge says how worn your tires are in words and only lists real trouble. The shop forecast gives your pace (front / midfield / back of the field) and a tire risk word (LOW / MEDIUM / HIGH / EXTREME), measured by replaying your race 60 times.
+- Race playback keeps a steady pace after the leader finishes.
+- Old saves are discarded.
 
-Note: perk level = tierScale x (1 + stars), capped at 4, so perks exist on unupgraded parts too.
+Measured with bots (300 careers): any tire trouble 61% of cars, punctures 43%, pit stops 28%, crashes 10%, 1.5 lead changes per race, winner leading at 60% of the race 54%, 21% of careers reach a 3-star part.
 
 ## Files
 

@@ -16,7 +16,7 @@ for (var r = 1; r <= CFG.rounds; r++) {
   var tots = [];
   lib.forEach(function (c, i) {
     for (var k = 0; k < 4; k++) {
-      tots.push(AB.runCar(AB.prepareCar(c.builds[r - 1]), Infinity, AB.mulberry32(i * 97 + k * 13 + r), { lite: true, cap: 10 }).total);
+      tots.push(AB.runCar(AB.prepareCar(c.builds[r - 1]), Infinity, AB.mulberry32(i * 97 + k * 13 + r), { lite: true, cap: 10, vmax: AB.vmaxOf(r) }).total);
     }
   });
   cal.push(median(tots));
@@ -32,7 +32,7 @@ var rng = AB.mulberry32(99);
 for (var rep = 0; rep < 600; rep++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var idx = []; while (idx.length < 10) { var j = Math.floor(rng() * lib.length); if (idx.indexOf(j) < 0) idx.push(j); }
-    var field = AB.raceField(idx.map(function (j) { return lib[j].builds[r - 1]; }), CFG.thresholds[r - 1], rng);
+    var field = AB.raceField(idx.map(function (j) { return lib[j].builds[r - 1]; }), CFG.thresholds[r - 1], rng, { vmax: AB.vmaxOf(r) });
     field.results.forEach(function (res, i) {
       var c = lib[idx[i]], b = c.builds[r - 1], R = rounds[r - 1];
       R.n++; R[res.status]++; if (res.status === 'fin') R.xs.push(res.x);
@@ -68,13 +68,13 @@ for (var rep2 = 0; rep2 < 300; rep2++) {
     var ix = []; while (ix.length < 10) { var jj = Math.floor(rng2() * lib.length); if (ix.indexOf(jj) < 0) ix.push(jj); }
     var T2 = CFG.thresholds[r - 1];
     var cars = ix.map(function (j) { return AB.prepareCar(lib[j].builds[r - 1]); });
-    var res2 = cars.map(function (c) { return AB.runCar(c, T2, rng2); });
-    var fld = AB.raceField(ix.map(function (j) { return lib[j].builds[r - 1]; }), T2, AB.mulberry32(rep2 * 31 + r));
+    var res2 = cars.map(function (c) { return AB.runCar(c, T2, rng2, { vmax: AB.vmaxOf(r) }); });
+    var fld = AB.raceField(ix.map(function (j) { return lib[j].builds[r - 1]; }), T2, AB.mulberry32(rep2 * 31 + r), { vmax: AB.vmaxOf(r) });
     res2 = fld.results;
     res2.forEach(function (R) {
       ev.cars++; var has = R.events.length > 0; if (has) ev.anyEv++;
       if (R.events.some(function (e) { return e.type === 'puncture'; })) ev.punct++;
-      if (R.events.some(function (e) { return e.type === 'blowout'; })) ev.blow++;
+      if (R.events.some(function (e) { return e.type === 'pit'; })) ev.blow++;
       if (R.status === 'crash') ev.crash++;
       var len = R.status === 'fin' ? R.x : R.x;
       R.events.forEach(function (e) { ev.evTotal++; if (e.x / len <= 0.6) ev.early++; });
@@ -87,7 +87,7 @@ for (var rep2 = 0; rep2 < 300; rep2++) {
   }
 }
 console.log('\nWear and events (full races, random fields):');
-console.log('  any event ' + pct(ev.anyEv / ev.cars) + ', puncture ' + pct(ev.punct / ev.cars) + ', blowout ' + pct(ev.blow / ev.cars) + ', crash ' + pct(ev.crash / ev.cars));
+console.log('  any event ' + pct(ev.anyEv / ev.cars) + ', puncture ' + pct(ev.punct / ev.cars) + ', pit stop ' + pct(ev.blow / ev.cars) + ', crash ' + pct(ev.crash / ev.cars));
 console.log('  median wear at end ' + Math.round(median(ev.endWear)) + '%, median first event at ' + (ev.firstFrac.length ? median(ev.firstFrac).toFixed(2) : '-') + ' of own race, events in first 60%: ' + pct(ev.early / Math.max(1, ev.evTotal)));
 
 // suspense: lead changes and whether the winner led at 60% of the race (full simulated races with step data)
@@ -95,7 +95,7 @@ var lc = 0, wl = 0, nn = 0;
 for (var rp = 0; rp < 200; rp++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var ix2 = []; while (ix2.length < 10) { var j3 = Math.floor(rng2() * lib.length); if (ix2.indexOf(j3) < 0) ix2.push(j3); }
-    var T3 = CFG.thresholds[r - 1], rr = ix2.map(function (j) { return AB.runCar(AB.prepareCar(lib[j].builds[r - 1]), T3, rng2); });
+    var T3 = CFG.thresholds[r - 1], rr = ix2.map(function (j) { return AB.runCar(AB.prepareCar(lib[j].builds[r - 1]), T3, rng2, { vmax: AB.vmaxOf(r) }); });
     var fx = rr.map(function (R, i) { return i; }).sort(function (a, b) { var A = rr[a], B = rr[b]; if (A.status === 'fin' && B.status === 'fin') return A.x - B.x; if (A.status === 'fin') return -1; if (B.status === 'fin') return 1; return B.total - A.total; });
     var win = rr[fx[0]], tEnd = win.x, last = -1, changes = 0, at60 = -1;
     for (var tt = 0.02; tt <= 1.0001; tt += 0.02) {
@@ -138,7 +138,7 @@ for (var ch = 0; ch < 1500; ch++) {
   for (var q = 0; q < 9; q++) field.push({ c: pool.splice(Math.floor(rngc() * pool.length), 1)[0], pts: 0, alive: true, last: 0, el: 1e9 });
   for (r = 1; r <= CFG.rounds; r++) {
     var alive = field.filter(function (f) { return f.alive; });
-    var res = AB.raceField(alive.map(function (f) { return f.c.builds[r - 1]; }), CFG.thresholds[r - 1], rngc);
+    var res = AB.raceField(alive.map(function (f) { return f.c.builds[r - 1]; }), CFG.thresholds[r - 1], rngc, { vmax: AB.vmaxOf(r) });
     alive.forEach(function (f, i) { f.pts += AB.pointsFor(res.pos[i], alive.length, r); f.last = res.pos[i]; });
     if (CFG.eliminateAfter.indexOf(r) >= 0) {
       var worst = alive.slice().sort(function (a, b) { return a.pts - b.pts || b.last - a.last; })[0];

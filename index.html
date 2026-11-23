@@ -55,7 +55,7 @@
   .wbar i { position:absolute; top:0; bottom:0; width:2px; background:#0e1116; }
   .wrow { display:flex; justify-content:space-between; font-size:13px; }
   .wlog { font-size:12.5px; min-height:18px; }
-  .r-clean { color:var(--dim); } .r-puncture { color:var(--warn); } .r-blowout { color:var(--orange); } .r-crash { color:var(--bad); font-weight:700; }
+  .r-puncture { color:var(--warn); } .r-pit { color:var(--orange); } .r-crash { color:var(--bad); font-weight:700; }
   #wear { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; }
 
   pre { margin:8px 0; font:inherit; white-space:pre; overflow-x:auto; }
@@ -86,8 +86,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.4"></script>
-<script src="bots.js?v=0.4"></script>
+<script src="engine.js?v=0.5"></script>
+<script src="bots.js?v=0.5"></script>
 <script>
 (function () {
   'use strict';
@@ -124,15 +124,19 @@
       '<span class="pn">' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></span><div class="sub">' + esc(AB.partSub(p)) + '</div><div class="d">' + esc(AB.describe(p)) + '</div>' +
       (AB.expText(p) ? '<div class="xp">' + esc(AB.expText(p)) + '</div>' : '') + '</div>';
   }
+  var RISK_COL = { LOW: '#3fb950', MEDIUM: '#f0c000', HIGH: '#ff7b2e', EXTREME: '#f85149' };
   function forecastHTML() {
-    var f = AB.forecast(run.build, run.round), W = CFG.wear, z = 0;
-    W.marks.forEach(function (m) { if (f.mid.wear >= m) z++; });
-    if (f.mid.wear >= 100) z = 5;
-    function x1(v) { return v.toFixed(1); }
-    var xs = f.hi.fin ? x1(f.mid.x) + ' <span class="dim">(' + x1(f.hi.x) + '–' + x1(f.lo.fin ? f.lo.x : CFG.capX) + ')</span>' : 'may not finish';
-    var ws = Math.round(f.mid.wear) + '% <span class="dim">(' + Math.round(f.hi.wear) + '–' + Math.round(f.lo.wear) + '%)</span>';
-    return '<div class="fc"><b>Tire forecast</b> <span class="dim">if nothing goes wrong</span><br>Finish at step ' + xs + '<br>Wear at finish <b style="color:' + ZONE[z] + '">' + ws + '</b><br>' +
-      (f.marks.length ? 'Forced rolls at ' + f.marks.join(', ') + '% · about ' + f.expEvents.toFixed(1) + ' tire events expected' : 'No forced tire rolls expected') + '</div>';
+    var f = AB.forecast(run.build, run.round), mine = f.mid.fin ? f.mid.x : 99, faster = 0, n = 0;
+    run.field.forEach(function (c) {
+      if (c.player || !c.alive) return;
+      var o = AB.forecast(c.career.builds[run.round - 1], run.round);
+      n++; if (mine < (o.mid.fin ? o.mid.x : 99)) faster++;
+    });
+    var pace = !n ? '' : faster >= n * 2 / 3 ? 'front of the field' : faster >= n / 3 ? 'midfield' : 'back of the field';
+    var trouble = { LOW: 'should hold up fine', MEDIUM: 'might give you a problem', HIGH: 'will probably give you trouble', EXTREME: 'could easily end your race' }[f.risk];
+    return '<div class="fc"><b>Race forecast</b><br>Pace: <b>' + pace + '</b> <span class="dim">(if your tires hold)</span><br>' +
+      'Tire risk: <b style="color:' + RISK_COL[f.risk] + '">' + f.risk + '</b>. Your tires ' + trouble + '.' +
+      (f.overheat ? '<br><span style="color:#f85149">At full push your tires won’t last the whole race.</span>' : '') + '</div>';
   }
   function standingsTable() {
     var st = AB.standings(run), h = '<table><tr><th>#</th><th>Team</th><th class="n">Pts</th></tr>';
@@ -153,8 +157,8 @@
       '<details><summary>How it works</summary>' +
       '<p>Each round: shop, then race. Every car adds its output each step; first to the finish line total wins.</p>' +
       '<p><b style="color:var(--engine)">Engine</b> makes power, <b style="color:var(--design)">Design</b> multiplies it, <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b style="color:var(--handling)">Handling</b> and <b style="color:var(--pilot)">Pilot</b> shape the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
-      '<p>Tires wear as you push the engine: at 20, 40, 60 and 80% wear the car rolls for a puncture, a blowout or a crash, and past 100% it keeps rolling. The shop shows a tire forecast for your car.</p>' +
-      '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars, for the same price, and keeps its experience. Upgraded parts season every race and grow; pilots always gain experience. Replacing or selling a part resets it. You can sell a part for half of what you paid.</p>' +
+      '<p>Every car has a top speed, and builds decide how fast it gets there. Tires wear as you push the engine, and the more worn they are, the likelier trouble gets: a puncture costs half your speed, a blowout sends you to the pits for fresh tires (you restart slowly), and a crash ends your race. The shop forecast tells you your pace and tire risk.</p>' +
+      '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars, for 75% of its price, and keeps its experience. Upgraded parts season every race and grow; pilots always gain experience. Buying a different part for a slot trades the old one in for half of what you paid. You can also sell a part for half of what you paid.</p>' +
       '<p>Points: 1st 15, 2nd 8, 3rd 6, 4th 3, 5th 2, then 1, last place 0. Your game saves itself after every shop action.</p></details>' +
       '<h2>Your stats</h2><table>' +
       '<tr><td>Championships finished</td><td class="n">' + s.runs + '</td></tr>' +
@@ -179,12 +183,12 @@
     run.offers.forEach(function (off, i) {
       var k = AB.classify(run.build, off), own = run.build[off.s], shown, tag;
       if (k.kind === 'upgrade') { shown = AB.applyPurchase(run.build, off)[off.s]; tag = '<div class="tag up">UPGRADE → ' + '★'.repeat(shown.u) + ' (keeps its experience)</div>'; }
-      else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'MAXED OUT' : 'replaces ' + esc(AB.partName(own)) + AB.stars(own)) + '</div>'; }
+      else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'MAXED OUT' : 'replaces ' + esc(AB.partName(own)) + AB.stars(own) + (k.trade ? ' · trade-in +' + k.trade + ' cr' : '')) + '</div>'; }
       var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
       h += '<div class="blk shop k-' + off.s + '"><div class="bh"><span class="sn">' + AB.SLOT_NAME[off.s] + '</span></div>' +
         '<span class="pn">' + esc(AB.partName(shown)) + '<span class="star">' + AB.stars(shown) + '</span></span><div class="sub">' + esc(AB.partSub(shown)) + '</div>' +
         '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
-        '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
+        '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : k.cost < 0 ? 'Swap · get ' + (-k.cost) + ' cr' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
     });
     h += '<div class="row"><button data-act="reroll"' + (run.rerollsLeft > 0 ? '' : ' disabled') + '>Reroll (' + run.rerollsLeft + ')</button>' +
       '<button class="go" data-act="race">Race! ▶</button></div>' +
@@ -218,8 +222,8 @@
       rows.forEach(function (r) { var tt = r.res.totals; lead = Math.max(lead, tt[Math.min(s, tt.length - 1)] / T); });
       lead = Math.min(1, lead);
       var ev = rows.some(function (r) { return r.res.events.some(function (e) { return e.x === s + 1; }); });
-      var ms = me && me.res.rolls.some(function (q) { return q.x === s + 1; });
-      var k = lead >= 1 ? 3 : 4 + Math.round(8 * lead) + (ev ? 6 : 0) + (ms ? 6 : 0);
+      var ms = me && me.res.events.some(function (q) { return q.x === s + 1; });
+      var k = lead >= 1 ? 8 : 4 + Math.round(8 * lead) + (ev ? 6 : 0) + (ms ? 6 : 0); // steady pace after the leader finishes
       starts.push(sum); n.push(k); sum += k;
     }
     return { n: n, starts: starts, total: sum, steps: maxL };
@@ -258,32 +262,34 @@
     var list = rows.map(function (row) {
       var st = carState(row, w), r = row.res, p = Math.min(1, st.tot / T), mark = ' ';
       var fin = r.status === 'fin' && st.s >= st.L, dead = r.status === 'crash' && st.s >= st.L;
-      if (fin) mark = '✓'; else if (dead) mark = 'X'; else if (st.code === 1) mark = '~'; else if (st.code === 2) mark = '!';
+      if (fin) mark = '✓'; else if (dead) mark = 'X'; else if (st.code === 1) mark = '~'; else if (st.code === 2) mark = 'P';
       return { row: row, p: p, mark: mark, fin: fin, dead: dead, wear: st.wear };
     });
     list.sort(function (x, y) { return (y.fin ? 1 : 0) - (x.fin ? 1 : 0) || (x.fin && y.fin ? x.row.pos - y.row.pos : y.p - x.p); });
     return list.map(function (it, i) {
       var car = it.row.car, dot = it.dead ? ' ' : '<span style="color:' + ZONE[zoneOf(it.wear)] + '">●</span>';
-      return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + esc(pad(car.name, 17)) + padL(Math.round(it.p * 100), 3) + '% ' + it.mark + ' ' + dot;
+      return padL(i + 1, 2) + '. <span style="color:' + teamColor(car) + ';font-weight:700">' + esc(label(car)) + '</span> ' + esc(pad(car.name, 17)) + padL(Math.round(it.p * 100), 4) + '% ' + it.mark + ' ' + dot;
     }).join('\n');
   }
-  function wearHTML(me, w) { // the player's live tire gauge and roll log
-    var st = carState(me, w), wear = st.wear, z = zoneOf(wear), W = CFG.wear;
-    var ticks = W.marks.map(function (m) { return '<i style="left:' + m + '%"></i>'; }).join('');
-    var shown = me.res.rolls.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
-    var log = shown.map(function (q) { return '<span class="r-' + q.res + '">' + (q.mark === 100 ? '100+' : q.mark) + '% ' + q.res + '</span>'; }).join(' · ');
-    return '<div class="wrow"><b>Tire wear</b><span style="color:' + ZONE[z] + ';font-weight:700">' + Math.round(wear) + '%</span></div>' +
-      '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div>' + ticks + '</div>' +
-      '<div class="wlog">' + (log || '<span class="dim">Rolls at 20 · 40 · 60 · 80%</span>') + '</div>';
+  var EV_TXT = { puncture: 'Puncture: lost half your speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out' };
+  var EV_SHORT = { puncture: 'puncture', pit: 'pit stop', crash: 'crash' };
+  function tireWord(wear) { return wear >= 100 ? 'OVERHEATING' : wear >= 80 ? 'critical' : wear >= 60 ? 'risky' : wear >= 40 ? 'worn' : wear >= 20 ? 'used' : 'fresh'; }
+  function wearHTML(me, w) { // the player's live tire gauge: no numbers to decode, only what happened
+    var st = carState(me, w), wear = Math.max(0, st.wear), z = zoneOf(wear);
+    var shown = me.res.events.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
+    var log = shown.map(function (q) { return '<div class="r-' + q.type + '">' + EV_TXT[q.type] + '</div>'; }).join('');
+    return '<div class="wrow"><b>Your tires</b><span style="color:' + ZONE[z] + ';font-weight:700">' + tireWord(wear) + '</span></div>' +
+      '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div></div>' +
+      '<div class="wlog">' + log + '</div>';
   }
   function resultsHTML(rep) {
     var rows = rep.rows.slice().sort(function (a, b) { return a.pos - b.pos; });
     var h = '<h2>Result · tap a team to see its car</h2>';
     rows.forEach(function (r) {
       var res = r.res, txt = res.status === 'fin' ? 'x ' + res.x.toFixed(1) : res.status === 'crash' ? 'CRASH x' + res.x : 'cap';
-      var evs = res.rolls.map(function (q) { return '<span class="r-' + q.res + '">' + (q.mark === 100 ? '100+' : q.mark) + '% ' + q.res + '</span>'; });
+      var evs = res.events.map(function (q) { return '<span class="r-' + q.type + '">' + EV_SHORT[q.type] + '</span>'; });
       h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm"><span style="color:' + teamColor(r.car) + ';font-weight:700">' + esc(label(r.car)) + '</span> ' + esc(r.car.name) + '</span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
-        '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%. Wear at the end ' + Math.round(res.wear) + '%.</p><p>' + (evs.length ? 'Tire rolls: ' + evs.join(' · ') : 'No forced tire rolls.') + '</p>';
+        '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%.</p><p>Tires: ' + (evs.length ? evs.join(' · ') : 'no trouble') + '</p>';
       AB.SLOTS.forEach(function (s) { h += partLine(r.build[s]); });
       h += '</details>';
     });
@@ -298,7 +304,7 @@
     var rows = rep.rows, sch = schedule(rows, rep.T), f = 0, me = rows.filter(function (r) { return r.car.player; })[0];
     $.innerHTML = '<div class="top"><b>Round ' + rep.round + ' · Race</b><span class="dim">Finish line ' + rep.T + '</span></div>' +
       '<pre id="track"></pre><div id="wear"></div><pre id="live"></pre><div id="ctl" class="row"><button data-act="skip">Skip ▶▶</button></div><div id="after"></div>' +
-      '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear: green fresh, yellow past 20%, then lime/orange/red. Track tint: yellow = puncture, orange = blowout, red X = crash, ✓ = finished.</p>';
+      '<p class="dim">@ is you (green); every rival team keeps its own color. Dots show tire wear, green fresh to red worn out. Track tint: yellow ~ puncture, orange P pit stop, red X crash, ✓ finished.</p>';
     var tEl = document.getElementById('track'), lEl = document.getElementById('live'), wEl = document.getElementById('wear');
     var avail = tEl.clientWidth - 10; // fit the 49-column track to this phone's width
     tEl.style.fontSize = Math.max(8, Math.min(13, avail / (track.W * 0.6))).toFixed(1) + 'px';
@@ -358,7 +364,7 @@
     home: function () { persist(); showStart(); },
     buy: function (d) {
       var i = +d.i, off = run.offers[i], name = off ? AB.partName(off) : '', r = AB.buy(run, i);
-      if (r.ok) { persist(); showShop((r.kind === 'upgrade' ? 'Upgraded ' : 'Bought ') + name + ' for ' + r.cost + ' cr.'); }
+      if (r.ok) { persist(); showShop((r.kind === 'upgrade' ? 'Upgraded ' : 'Bought ') + name + (r.trade ? ' (trade-in +' + r.trade + ' cr), net ' + r.cost + ' cr.' : ' for ' + r.cost + ' cr.')); }
       else showShop(r.why, true);
     },
     sell: function (d) {

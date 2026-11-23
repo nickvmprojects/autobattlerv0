@@ -17,10 +17,10 @@
   var A2 = ['Racing', 'Motors', 'Works', 'Speed', 'GP', 'Team', 'Garage', 'Engineering', 'Autosport', 'Pit Crew'];
 
   // Expected total at x=12 with common random numbers, so builds can be compared fairly.
-  function evalBuild(build, seed, noEvents) {
+  function evalBuild(build, seed, noEvents, round) {
     var car = AB.prepareCar(build), tot = 0, N = 8;
     for (var i = 0; i < N; i++) {
-      tot += AB.runCar(car, Infinity, AB.mulberry32(seed + i * 7919), { lite: true, noEvents: noEvents, cap: 12 }).total;
+      tot += AB.runCar(car, Infinity, AB.mulberry32(seed + i * 7919), { lite: true, noEvents: noEvents, cap: 12, vmax: round ? AB.vmaxOf(round) : 0 }).total;
     }
     return tot / N;
   }
@@ -42,7 +42,7 @@
     var shopsLeft = CFG.rounds - round;
     if (bot.personality === 'saver' && round % 2 === 1 && round < CFG.rounds) return bought;
     while (guard++ < 10) {
-      var cur = evalBuild(state.build, seed, bot.personality === 'gambler');
+      var cur = evalBuild(state.build, seed, bot.personality === 'gambler', round);
       var cands = [], powerScores = [];
       offers.forEach(function (off, i) {
         var k = AB.classify(state.build, off);
@@ -50,7 +50,7 @@
         var c = { i: i, off: off, cost: Math.max(1, k.cost), score: 0, pow: off.s !== 'marketing' };
         if (c.pow) {
           var nb = AB.applyPurchase(state.build, off);
-          c.score = (evalBuild(nb, seed, bot.personality === 'gambler') - cur) / c.cost;
+          c.score = (evalBuild(nb, seed, bot.personality === 'gambler', round) - cur) / c.cost;
           if (c.score > 0) powerScores.push(c.score);
           var w = 1;
           if (bot.personality === 'rusher') w = (off.s === 'engine' || off.s === 'design') ? 2 : 0.6;

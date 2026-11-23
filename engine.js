@@ -15,7 +15,7 @@
     points: [15, 8, 6, 3, 2, 1], lastPoints: 0,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
-    tierPrice: 10, upgradeCost: [1, 1, 1],   // an upgrade costs the same as the part itself
+    tierPrice: 10, upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
     upgradeMult: [1, 1.5, 2.5, 4.0], upgradeTier: [0, 0.5, 1.0, 1.5],
     tierScale: [0, 0.4, 0.7, 1.0, 1.3],      // scales perks, seasoning and pilot buffs by tier
     perkCap: 4,                              // perk level = min(perkCap, tierScale * (1 + stars))
@@ -28,16 +28,21 @@
     design: [0, 0.25, 0.35, 0.50, 0.70],
     pilot: [[0.3, 0.3], [0.2, 0.5], [0.1, 0.7], [0.05, 0.8], [0, 0.9], [0, 1.0]],
     pilotSpread: 1,                // multiplies the half-width of every pilot range (1 = design doc, 0 = no randomness)
-    puncture: 0.10, blowout: 0.30, reinforcedBlowout: 0.45, // output multipliers while active
+    // Tire trouble now costs momentum (the engine's x) instead of cutting output:
+    // a puncture keeps this share of x, a blowout is a pit stop (x back to 1, fresh tires, wear back to 0).
+    punctureKeep: 0.5, pitKeep: 0.3, reinforcedKeep: 0.25, // Reinforced tires keep some momentum through a pit stop
     // Tire wear meter: wear += k * stress^p * wearMul, stress = engine load / tire limit.
-    // Crossing a mark forces one event roll (chance, then severity mix [puncture, blowout, crash]).
-    wear: { k: 18, p: 1.5, marks: [20, 40, 60, 80], chances: [0.30, 0.40, 0.50, 0.60],
-      mixes: [[0.85, 0.14, 0.01], [0.65, 0.29, 0.06], [0.45, 0.38, 0.17], [0.30, 0.40, 0.30]],
-      over: 0.30, overMix: [0.20, 0.45, 0.35] },
-    thresholds: [43, 78, 128, 200, 300, 440, 620, 860, 1160]
+    // Crossing a mark forces one hidden check (chance, then severity mix [puncture, blowout, crash]).
+    wear: { k: 36, p: 1.5, marks: [20, 40, 60, 80], chances: [0.30, 0.40, 0.50, 0.60],
+      mixes: [[0.82, 0.14, 0.04], [0.60, 0.30, 0.10], [0.40, 0.35, 0.25], [0.25, 0.35, 0.40]],
+      over: 0.30, overMix: [0.15, 0.40, 0.45] },
+    thresholds: [34, 56, 82, 133, 196, 303, 423, 592, 790],
+    tradeIn: 0.5,                  // share of what you paid that comes back when a purchase replaces a part
+    // Top speed per round (soft cap: weak cars barely notice it, strong cars level off near it). capK = sharpness.
+    vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.4';
+  var VERSION = '0.5';
   var SLOTS = ['engine', 'design', 'tires', 'handling', 'pilot', 'marketing'];
   var SLOT_NAME = { engine: 'Engine', design: 'Design', tires: 'Tires', handling: 'Handling', pilot: 'Pilot', marketing: 'Marketing' };
   var ARCH = {
@@ -88,8 +93,8 @@
   function engineFn(p) {
     var e = CFG.expo[p.t], m = mult(p) * season(p), l = lv(p);
     switch (p.a) {
-      case 'sprinter': return function (x) { return m * 3.0 * Math.pow(x, e - 0.5 + 0.05 * l); };
-      case 'endurance': return function (x) { return m * 0.4 * Math.pow(x, e + 0.4) * (1 + 0.25 * l * Math.max(0, 1 - x / 12)); };
+      case 'sprinter': return function (x) { return m * 2.2 * Math.pow(x, e - 0.5 + 0.05 * l); };
+      case 'endurance': return function (x) { return m * 0.7 * Math.pow(x, e + 0.4) * (1 + 0.25 * l * Math.max(0, 1 - x / 12)); };
       case 'turbo': return function (x) { return m * 1.25 * Math.pow(x, e); };
       default: return function (x) { return 3 * x; };
     }
@@ -113,12 +118,12 @@
     return f;
   }
   function tireInfo(p) {
-    var info = { limit: 30, bonus: 1, blowMul: CFG.blowout, noCrash: false, evMul: 1 }, l = lv(p);
+    var info = { limit: 40, bonus: 1, keep: CFG.pitKeep, noCrash: false, evMul: 1 }, l = lv(p);
     if (p.t === 0) return info;
     var lim = 1.1 * Math.pow(10, CFG.expo[p.t]) * mult(p) * season(p);
     if (p.a === 'hard') info.evMul = Math.max(0.6, 1 - 0.08 * l);
     if (p.a === 'soft') { lim *= 0.8; info.bonus = 1 + CFG.softBase + 0.03 * l; }
-    if (p.a === 'reinforced') { lim *= 0.8; info.noCrash = true; info.blowMul = Math.min(0.75, CFG.reinforcedBlowout + 0.1 * l); }
+    if (p.a === 'reinforced') { lim *= 0.8; info.noCrash = true; info.keep = Math.min(0.7, CFG.pitKeep + CFG.reinforcedKeep + 0.08 * l); }
     info.limit = lim;
     return info;
   }
@@ -158,7 +163,7 @@
         info.pow = function () { return pw; };
         info.wear = function () { return pw; };
       } else if (p.a === 'opportunist') {
-        var start = Math.min(0.9, 0.5 + 0.08 * L.u), early = 1 - 0.10 * L.b, late = 1 + 0.03 * L.u;
+        var start = Math.min(0.9, 0.7 + 0.08 * L.u), early = 1 - 0.10 * L.b, late = 1 + 0.03 * L.u;
         info.pow = function (x) { return Math.min(1.3, start + 0.06 * x) * (x >= 6 ? late : 1); };
         info.wear = function (x) { return x <= 5 ? early : 1; };
       }
@@ -183,7 +188,7 @@
     car.design = designFn(de);
     car.loadF = loadFactor(en, de);
     var tr = tireInfo(b.tires);
-    car.limit = tr.limit; car.tireBonus = tr.bonus; car.blowMul = tr.blowMul; car.noCrash = tr.noCrash;
+    car.limit = tr.limit; car.tireBonus = tr.bonus; car.keep = tr.keep; car.noCrash = tr.noCrash;
     var ha = handlingInfo(b.handling), pl = pilotInfo(b.pilot);
     var hi = Math.min(1, pl.hi + ha.top), lo = Math.min(hi, pl.lo + ha.floor);
     car.rollLo = lo; car.rollHi = hi; car.pilotStep = pl.pow;
@@ -202,47 +207,48 @@
     return [p / s, b / s, c / s];
   }
 
-  /* Run one car. State codes in `st`: 0 fine, 1 puncture, 2 blowout, 3 crashed.
-   * opts: lite (skip per-step arrays), noEvents (wear still builds, no rolls), cap, roll (fixed pilot roll).
-   * Returns wr (wear after each step), rolls (every forced roll: x, mark, res) and wear at the end. */
+  /* Run one car. The engine runs on its own momentum xe (steps since the last pit stop), separate from race time x.
+   * State codes in `st`: 0 fine, 1 puncture, 2 pit stop, 3 crashed (codes linger 2 steps so the track can show them).
+   * opts: lite (skip per-step arrays), noEvents (wear still builds, no rolls), cap, roll (fixed pilot roll), vmax (top speed).
+   * Returns wr (wear after each step), events (trouble only: x, type) and wear at the end. */
+  function capSpeed(v, vm) { return vm ? v / Math.pow(1 + Math.pow(v / vm, CFG.capK), 1 / CFG.capK) : v; }
   function runCar(car, T, rng, opts) {
     opts = opts || {};
-    var cap = opts.cap || CFG.capX, lite = !!opts.lite, W = CFG.wear;
+    var cap = opts.cap || CFG.capX, lite = !!opts.lite, W = CFG.wear, vm = opts.vmax || 0;
     var roll = opts.roll != null ? opts.roll : Math.max(0.02, Math.min(1, car.rollLo + rng() * (car.rollHi - car.rollLo)));
-    var tot = 0, pLeft = 0, blown = false, wear = 0, mi = 0, over = 0;
-    var totals = lite ? null : [0], st = lite ? null : [0], wr = lite ? null : [0], rolls = lite ? null : [], events = [];
+    var tot = 0, xe = 0, wear = 0, mi = 0, over = 0, show = 0, showCode = 0;
+    var totals = lite ? null : [0], st = lite ? null : [0], wr = lite ? null : [0], events = [];
     function done(status, xv, total, wend) {
-      return { status: status, x: xv, total: total, totals: totals, st: st, wr: wr, rolls: rolls, events: events, roll: roll, wear: wend, over: over };
+      return { status: status, x: xv, total: total, totals: totals, st: st, wr: wr, events: events, roll: roll, wear: wend, over: over };
     }
     for (var x = 1; x <= cap; x++) {
-      var eng = car.engine(x), crashNow = false, w0 = wear;
-      wear += W.k * Math.pow(eng * car.loadF / car.limit, W.p) * car.wearMul(x);
+      xe++;
+      var eng = car.engine(xe), crashNow = false, w0 = wear;
+      wear += W.k * Math.pow(eng * car.loadF / car.limit, W.p) * car.wearMul(xe);
       if (wear >= 100) over++;
       if (!opts.noEvents) {
         var ks = [];
         while (mi < W.marks.length && wear >= W.marks[mi]) { ks.push(mi); mi++; }
         if (wear >= 100) ks.push(-1);
-        for (var q = 0; q < ks.length; q++) {
-          var k = ks[q], chance = k >= 0 ? W.chances[k] : W.over, mix = k >= 0 ? W.mixes[k] : W.overMix, res = 'clean';
+        for (var q = 0; q < ks.length && !crashNow; q++) {
+          var k = ks[q], chance = k >= 0 ? W.chances[k] : W.over, mix = k >= 0 ? W.mixes[k] : W.overMix;
           if (rng() < chance) {
-            var sh = severity(mix, car), u = rng();
-            if (u < sh[0]) { pLeft = Math.max(pLeft, 1 + Math.floor(rng() * 3)); res = 'puncture'; }
-            else if (u < sh[0] + sh[1]) { blown = true; res = 'blowout'; }
+            var sh = severity(mix, car), u = rng(), res;
+            if (u < sh[0]) { xe = Math.max(1, Math.round(xe * CFG.punctureKeep)); res = 'puncture'; show = 2; showCode = 1; }
+            else if (u < sh[0] + sh[1]) { xe = Math.max(1, Math.round(xe * car.keep)); wear = 0; mi = 0; res = 'pit'; show = 2; showCode = 2; }
             else { crashNow = true; res = 'crash'; }
             events.push({ x: x, type: res });
+            if (res === 'pit') break; // fresh tires: the remaining checks of this step are void
           }
-          if (!lite) rolls.push({ x: x, mark: k >= 0 ? W.marks[k] : 100, res: res });
         }
       }
-      var mul = 1, code = 0;
-      if (blown) { mul = car.blowMul; code = 2; }
-      if (pLeft > 0 && CFG.puncture < mul) { mul = CFG.puncture; code = 1; }
-      if (pLeft > 0) pLeft--;
-      var out = eng * car.tireBonus * (1 + car.design(x)) * roll * car.pilotStep(x) * mul;
+      var code = show > 0 ? showCode : 0;
+      if (show > 0) show--;
+      var out = capSpeed(car.engine(xe) * car.tireBonus * (1 + car.design(xe)) * roll * car.pilotStep(xe), vm);
       if (tot + out >= T) { // finish is checked before a crash on the same step
         var fr = (T - tot) / out;
         if (!lite) { totals.push(T); st.push(code); wr.push(wear); }
-        return done('fin', x - 1 + fr, T, w0 + (wear - w0) * fr);
+        return done('fin', x - 1 + fr, T, Math.max(0, w0 + (wear - w0) * fr));
       }
       if (crashNow) {
         if (!lite) { totals.push(tot); st.push(3); wr.push(wear); }
@@ -255,8 +261,9 @@
   }
 
   // Race a field. builds = array of builds. Returns results + positions (1 = winner).
-  function raceField(builds, T, rng) {
-    var results = builds.map(function (b) { return runCar(prepareCar(b), T, rng); });
+  function vmaxOf(round) { return CFG.vmax ? CFG.vmax[round - 1] : 0; }
+  function raceField(builds, T, rng, opts) {
+    var results = builds.map(function (b) { return runCar(prepareCar(b), T, rng, opts); });
     var idx = results.map(function (_, i) { return i; });
     idx.sort(function (a, b) {
       var ra = results[a], rb = results[b];
@@ -271,18 +278,22 @@
     return { results: results, order: idx, pos: pos };
   }
 
-  /* Tire forecast for the shop: finish step and wear at the finish for a low / average / high
-   * pilot roll, assuming no tire trouble, plus the forced rolls expected on the way. */
+  /* Forecast for the shop: finish step for a low / average / high pilot roll without tire trouble (pace),
+   * plus tire risk from replaying the race with trouble on (average problems, crash share). */
   function forecast(build, round) {
     var T = CFG.thresholds[round - 1], car = prepareCar(build), W = CFG.wear, out = {};
     [['lo', car.rollLo], ['mid', (car.rollLo + car.rollHi) / 2], ['hi', car.rollHi]].forEach(function (a) {
-      var r = runCar(car, T, mulberry32(1), { lite: true, noEvents: true, roll: Math.max(0.02, Math.min(1, a[1])) });
+      var r = runCar(car, T, mulberry32(1), { lite: true, noEvents: true, vmax: vmaxOf(round), roll: Math.max(0.02, Math.min(1, a[1])) });
       out[a[0]] = { x: r.x, fin: r.status === 'fin', wear: r.wear, over: r.over };
     });
-    var marks = [], exp = 0;
-    W.marks.forEach(function (m, i) { if (out.mid.wear >= m) { marks.push(m); exp += W.chances[i]; } });
-    exp += out.mid.over * W.over;
-    out.marks = marks; out.expEvents = exp;
+    var N = 60, evs = 0, crashes = 0, rng = mulberry32(round * 7 + 3); // replay the race many times with tire trouble on
+    for (var i = 0; i < N; i++) {
+      var rr = runCar(car, T, rng, { lite: true, vmax: vmaxOf(round) });
+      evs += rr.events.length; if (rr.status === 'crash') crashes++;
+    }
+    out.expEvents = evs / N; out.crash = crashes / N;
+    out.risk = out.crash >= 0.3 ? 'EXTREME' : out.crash >= 0.15 || out.expEvents >= 1.2 ? 'HIGH' : out.expEvents >= 0.4 ? 'MEDIUM' : 'LOW';
+    out.overheat = out.mid.over > 0;
     return out;
   }
 
@@ -311,7 +322,8 @@
       if (own.u >= 3) return { kind: 'maxed', cost: 0 };
       return { kind: 'upgrade', cost: Math.round(price(offer) * CFG.upgradeCost[own.u]) };
     }
-    return { kind: 'replace', cost: price(offer) };
+    var tr = tradeValue(own);
+    return { kind: 'replace', cost: price(offer) - tr, gross: price(offer), trade: tr };
   }
   function applyPurchase(build, offer) {
     var c = cloneBuild(build), k = classify(build, offer);
@@ -402,7 +414,9 @@
       return run;
     } catch (e) { return null; }
   }
-  function sellValue(p) { return p.t === 0 ? 0 : Math.floor(price(p) * (1 + p.u) / 2); } // half of everything paid for the part
+  function paid(p) { var c = price(p); for (var i = 0; i < p.u; i++) c += Math.round(price(p) * CFG.upgradeCost[i]); return p.t === 0 ? 0 : c; }
+  function tradeValue(p) { return Math.floor(paid(p) * CFG.tradeIn); } // what a replacement gives back
+  function sellValue(p) { return Math.floor(paid(p) / 2); } // half of everything paid for the part
   function sell(run, slot) {
     var p = run.build[slot];
     if (run.phase !== 'shop' || !p || p.t === 0) return { ok: false, why: 'nothing to sell' };
@@ -429,7 +443,7 @@
     if (off.s === 'marketing') run.rerollsLeft += Math.max(0, rerollsOf(run.build) - oldRe);
     run.offers.splice(i, 1);
     run.bought++; if (k.kind === 'upgrade') run.upgrades++;
-    return { ok: true, kind: k.kind, cost: k.cost };
+    return { ok: true, kind: k.kind, cost: k.cost, trade: k.trade || 0 };
   }
   function reroll(run) {
     if (run.phase !== 'shop' || run.rerollsLeft <= 0) return false;
@@ -441,7 +455,7 @@
     var round = run.round, T = CFG.thresholds[round - 1];
     var cars = run.field.filter(function (c) { return c.alive; });
     var builds = cars.map(function (c) { return cloneBuild(c.player ? run.build : c.career.builds[round - 1]); }); // clones show pre-race experience
-    var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729));
+    var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729), { vmax: vmaxOf(round) });
     var n = cars.length, rows = [];
     cars.forEach(function (c, i) {
       var pts = pointsFor(rr.pos[i], n, round);
@@ -512,8 +526,8 @@
     var m = mult(p) * season(p), e = CFG.expo[p.t], l = lv(p);
     switch (p.s) {
       case 'engine':
-        if (p.a === 'sprinter') return 'power ' + fmt(3 * m) + '·x^' + fmt(e - 0.5 + 0.05 * l) + ' (strong early, flattens)';
-        if (p.a === 'endurance') return 'power ' + fmt(0.4 * m) + '·x^' + fmt(e + 0.4) + ' (slow start, steep late)';
+        if (p.a === 'sprinter') return 'power ' + fmt(2.2 * m) + '·x^' + fmt(e - 0.5 + 0.05 * l) + ' (strong early, flattens)';
+        if (p.a === 'endurance') return 'power ' + fmt(0.7 * m) + '·x^' + fmt(e + 0.4) + ' (slow start, steep late)';
         if (p.a === 'turbo') return 'power ' + fmt(1.25 * m) + '·x^' + fmt(e) + ', engine load counts ×' + fmt(Math.max(1, 1.3 - 0.1 * l)) + ' vs tires';
         return 'power 3·x';
       case 'design': {
@@ -528,7 +542,7 @@
         var t = tireInfo(p), s = 'limit ' + Math.round(t.limit);
         if (p.a === 'hard') s += ', wear −' + pc(1 - t.evMul);
         if (p.a === 'soft') s += ', +' + pc(t.bonus - 1) + ' power';
-        if (p.a === 'reinforced') s += ', no crashes, blowout ×' + fmt(t.blowMul);
+        if (p.a === 'reinforced') s += ', no crashes, keeps ' + pc(t.keep) + ' speed through pit stops';
         return s;
       }
       case 'handling': {
@@ -563,6 +577,6 @@
     VERSION: VERSION, serialize: serialize, restore: restore, sellValue: sellValue, sell: sell,
     newChampionship: newChampionship, startShop: startShop, buy: buy, reroll: reroll, race: race, next: next, standings: standings,
     partName: partName, partSub: partSub, stars: stars, describe: describe, expText: expText,
-    COLORS: COLORS, colorOf: colorOf, forecast: forecast, bumpExperience: bumpExperience, newPart: newPart, lv: lv, season: season, growth: growth
+    COLORS: COLORS, colorOf: colorOf, forecast: forecast, bumpExperience: bumpExperience, newPart: newPart, lv: lv, season: season, growth: growth, vmaxOf: vmaxOf, capSpeed: capSpeed, tradeValue: tradeValue, paid: paid
   };
 });
