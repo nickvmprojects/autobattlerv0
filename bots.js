@@ -16,11 +16,11 @@
   var A1 = ['Apex', 'Turbo', 'Red', 'Silver', 'Night', 'Iron', 'Rapid', 'Blue', 'Golden', 'Storm', 'Vortex', 'Rocket', 'Ghost', 'Lucky', 'Thunder', 'Crimson', 'Solar', 'Arctic', 'Savage', 'Velvet'];
   var A2 = ['Racing', 'Motors', 'Works', 'Speed', 'GP', 'Team', 'Garage', 'Engineering', 'Autosport', 'Pit Crew'];
 
-  // Expected total at x=12 with common random numbers, so builds can be compared fairly.
+  // Expected total at x=20 with common random numbers, so builds can be compared fairly.
   function evalBuild(build, seed, noEvents, round) {
     var car = AB.prepareCar(build, { behind: CFG.botBehind }), tot = 0, N = 8;
     for (var i = 0; i < N; i++) {
-      tot += AB.runCar(car, Infinity, AB.mulberry32(seed + i * 7919), { lite: true, noEvents: noEvents, cap: 12, vmax: round ? AB.vmaxOf(round) : 0 }).total;
+      tot += AB.runCar(car, Infinity, AB.mulberry32(seed + i * 7919), { lite: true, noEvents: noEvents, cap: 20, vmax: round ? AB.vmaxOf(round) : 0, lapLen: round ? AB.lapLenOf(round) : 0 }).total;
     }
     return tot / N;
   }
@@ -132,10 +132,10 @@
   /* Expert: plans ahead. Judges a purchase by how much faster the car finishes (tire trouble included) this round
    * and two rounds from now with seasoned parts, rerolls bad shops, and locks for parts it can afford next round. */
   function finishScore(build, round, seed) { // mean finish step, a crash counts as finishing very late
-    var car = AB.prepareCar(build, { behind: CFG.botBehind }), T = CFG.thresholds[round - 1], s = 0, N = 24;
+    var car = AB.prepareCar(build, { behind: CFG.botBehind }), T = AB.raceLen(round), s = 0, N = 24;
     for (var i = 0; i < N; i++) {
       var r = AB.runCar(car, T, AB.mulberry32(seed + i * 7919), { lite: true, vmax: AB.vmaxOf(round) });
-      s += r.status === 'fin' ? r.x : r.status === 'crash' ? 15 : CFG.capX;
+      s += r.status === 'fin' ? r.x : r.status === 'crash' ? 40 : CFG.capX;
     }
     return s / N;
   }

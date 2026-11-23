@@ -2,7 +2,18 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.7)
+## Changes in this version (v0.8)
+
+- **3-lap races**: `CFG.laps` = 3; `CFG.thresholds` are now lap lengths (race = laps x lap). Tires cool at each lap line (`CFG.lapCool` 0.4: wear x0.6, passed checks re-arm).
+- **Spun around** (new tire-check outcome): the car goes backwards for one step at half speed and keeps 85% momentum. Severity mixes are now [puncture, blowout, spun, crash]; crashes come mostly from overheated tires. Per car per race: ~1.4 punctures, 1.1 pit stops, 1.2 spins, 11% crash (13-15% in round 1).
+- **Times in seconds**: one step = `CFG.secPerStep` (9 s). Results show the winner's time (m:ss.s), gaps (+2.7s), and DNF with the lap.
+- **Steeper tier prices**: `CFG.tierPrices` 10 / 22 / 38 / 55.
+- Race view: lap counter, per-car lap in the list, purple ↺ for spins. Playback is a bit quicker per step.
+- Changelog in the menu now carries every version back to v0.5.
+
+Measured (`node metrics.js 1000 2026 full`): seasoned 23% win / 51% podium, expert 20% / 53%, beginner 2% / 8%; skipping marketing now costs (16% vs 23%), skipping handling costs (4%). Decided by round 3: 24% (was 20% in v0.7). Champion variety 27%; Sprinter 56% of champion engines.
+
+## Previous version (v0.7)
 
 - **Handling events**: each step (from round 2) a car is steady, shaky or out of control, set by its speed share of the round's top speed vs its grip. Shaky/out: top speed x0.85, half acceleration, tire wear x1.3 (Traction: no extra wear). Out of control: 6% spin-out crash chance (x crash modifiers). Grip: stock 0.55, Handling +0.12 per effective tier (Stabilizer x1.2, Traction x1, Setup x0.7), Ground effect design +0.15 x tier scale. Knobs in `CFG.handling`.
 - **Upgrades scale with tier** (`CFG.upgradeMult` per tier): T1 x1.3/1.6/2.0 ... T4 x1.5/2.5/4.0; T1 engines x1.3/1.5/1.8 (`CFG.engineT1Mult`).
