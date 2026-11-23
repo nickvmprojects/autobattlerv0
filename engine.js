@@ -65,9 +65,16 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.12c';
+  var VERSION = '0.13';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.13', items: [
+      'Race screen reorganised: the announcer, the circuit and the track’s effects stay pinned at the top while you scroll through clear blocks: Your car, Live racer view and Timing tower.',
+      'The timing tower shows the top 5 plus you; tap Show all for the full field.',
+      'Calmer announcer: each line stays up long enough to read. Your moments, crashes, lead changes, the final lap and the win are always called; smaller chatter is skipped when it gets old. The full call sheet is still there after the race.',
+      'Track effects are visible during the race: effect chips under the circuit, weather on the track (rain, snow, heat haze, fog, smoke) and announcer quips when a circuit bites.',
+      'Speed button (1× or 2×) during races.',
+      'Shop buy buttons are quieter: orange outline instead of bright red.'] },
     { v: '0.12c', items: [
       'Meet the rivals: every rival team now has its own racer, with a headshot in the timing tower, results, standings and announcer calls. 14 racers in different anime styles and moods, from smug 80s divas to a sleepy plush doll and a scarred street racer. A team keeps its racer.'] },
     { v: '0.12b', items: [
