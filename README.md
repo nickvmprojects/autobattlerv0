@@ -2,7 +2,18 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.5)
+## Changes in this version (v0.6)
+
+- **Pinned shop bar**: round, credits, rerolls, cars, pace and tire risk stay at the top while you scroll the shop.
+- **F1 points**: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1; a crash scores 0.
+- **Shop lock**: free, toggles on and off any time, keeps the remaining offers for next round (bought slots are refilled). Rerolling is paused while locked. Bots lock too when a good part is just out of reach.
+- **Marketing buffs**: every marketing part +2 cr/round; Sponsor 5 cr per tier per round plus a signing bonus (5 cr per tier); Scouts +1 shop offer (+2 at T3+); Brand shop quality x2.5 and prize money (0.25 cr per tier per point you scored last race).
+- **Tier badges** in rarity colors (T1 grey, T2 green, T3 blue, T4 gold) next to the archetype name, on your parts and shop offers.
+- Thresholds recalibrated; old saves are discarded.
+
+Measured with bots (300 careers): bots now run marketing in 85% of builds (was 63%); Brand is still the weakest pick (avg place 6.1). Locks: about 2 per career; 29% of careers reach a 3-star part. Tire trouble 60% of cars, crashes 9%.
+
+## Previous version (v0.5)
 
 - **Trade-in**: buying a different part for a slot gives back half of what you paid for the old one, right away. The shop shows the trade-in and the net price.
 - **Upgrades cost 75%** of the part's price (keeps upgrading attractive next to cheaper tier jumps).

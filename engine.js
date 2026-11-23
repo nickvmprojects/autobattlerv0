@@ -11,8 +11,10 @@
   var CFG = {
     rounds: 9, maxTier: 4, fieldSize: 10, shopSize: 5, capX: 30,
     eliminateAfter: [2, 4, 6, 8],
-    // fixed points per finishing position (index 0 = 1st); positions past the list get the last value; last place gets lastPoints
-    points: [15, 8, 6, 3, 2, 1], lastPoints: 0,
+    // F1 points per finishing position (index 0 = 1st); positions past the list get 0; a crash scores crashPoints
+    points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], crashPoints: 0,
+    // Marketing: every marketing part adds mktBase credits; Sponsor signing bonus per tier, Brand prize money per point and tier
+    mktBase: 2, sponsorBonus: 5, brandPrize: 0.25, botExpectedPts: 10,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
     tierPrice: 10, upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
@@ -23,7 +25,7 @@
     pilotGrow: 0.06, pilotGrowCap: 1.5,      // pilot buffs grow with experience
     fade: 0.7,
     ramp: [0.08, 0.12, 0.16, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45], // weight of a new tier by age (rounds since unlock)
-    rdBias: 0.25, brandQ: 0.06, softBase: 0.04,
+    rdBias: 0.25, brandQ: 0.15, softBase: 0.04,
     expo: [1, 2.0, 2.2, 2.5, 2.8],
     design: [0, 0.25, 0.35, 0.50, 0.70],
     pilot: [[0.3, 0.3], [0.2, 0.5], [0.1, 0.7], [0.05, 0.8], [0, 0.9], [0, 1.0]],
@@ -36,13 +38,13 @@
     wear: { k: 36, p: 1.5, marks: [20, 40, 60, 80], chances: [0.30, 0.40, 0.50, 0.60],
       mixes: [[0.82, 0.14, 0.04], [0.60, 0.30, 0.10], [0.40, 0.35, 0.25], [0.25, 0.35, 0.40]],
       over: 0.30, overMix: [0.15, 0.40, 0.45] },
-    thresholds: [34, 56, 82, 133, 196, 303, 423, 592, 790],
+    thresholds: [34, 57, 83, 134, 203, 318, 444, 645, 850],
     tradeIn: 0.5,                  // share of what you paid that comes back when a purchase replaces a part
     // Top speed per round (soft cap: weak cars barely notice it, strong cars level off near it). capK = sharpness.
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.5';
+  var VERSION = '0.6';
   var SLOTS = ['engine', 'design', 'tires', 'handling', 'pilot', 'marketing'];
   var SLOT_NAME = { engine: 'Engine', design: 'Design', tires: 'Tires', handling: 'Handling', pilot: 'Pilot', marketing: 'Marketing' };
   var ARCH = {
@@ -172,13 +174,14 @@
     return info;
   }
   function marketingInfo(p) {
-    var m = mult(p) * season(p), l = lv(p);
+    var m = mult(p) * season(p), l = lv(p), base = p.t > 0 ? CFG.mktBase : 0;
+    var info = { credits: base, rerolls: 1, q: 0, extra: 0, bonus: 0, prize: 0 };
     switch (p.a) {
-      case 'sponsor': return { credits: 3 * p.t * m, rerolls: 1 + (l >= 2 ? 1 : 0), q: 0 };
-      case 'scouts': return { credits: 1.5 * p.t * m, rerolls: 1 + Math.floor(l), q: 0 };
-      case 'brand': return { credits: 2 * p.t * m, rerolls: 1, q: CFG.brandQ * l };
-      default: return { credits: 0, rerolls: 1, q: 0 };
+      case 'sponsor': info.credits += 5 * p.t * m; info.rerolls = 1 + (l >= 2 ? 1 : 0); info.bonus = CFG.sponsorBonus * p.t; break;
+      case 'scouts': info.credits += 2 * p.t * m; info.rerolls = 1 + Math.floor(l); info.extra = p.t >= 3 ? 2 : 1; break;
+      case 'brand': info.credits += 2 * p.t * m; info.q = CFG.brandQ * l; info.prize = CFG.brandPrize * p.t * m; break;
     }
+    return info;
   }
 
   // Everything the race needs, computed once per build.
@@ -310,7 +313,9 @@
 
   // ---------- economy and shop ----------
   function marketingOf(build) { return marketingInfo(build.marketing); }
-  function income(build, round) { return Math.round(CFG.incomeBase + CFG.incomePerRound * round + marketingOf(build).credits); }
+  // lastPts: championship points scored in the previous race (Brand prize money)
+  function income(build, round, lastPts) { var m = marketingOf(build); return Math.round(CFG.incomeBase + CFG.incomePerRound * round + m.credits + m.prize * (lastPts || 0)); }
+  function shopSizeOf(build) { return CFG.shopSize + marketingOf(build).extra; }
   function shopQuality(build) { return marketingOf(build).q; }
   function rerollsOf(build) { return marketingOf(build).rerolls; }
 
@@ -322,8 +327,8 @@
       if (own.u >= 3) return { kind: 'maxed', cost: 0 };
       return { kind: 'upgrade', cost: Math.round(price(offer) * CFG.upgradeCost[own.u]) };
     }
-    var tr = tradeValue(own);
-    return { kind: 'replace', cost: price(offer) - tr, gross: price(offer), trade: tr };
+    var tr = tradeValue(own), bonus = offer.s === 'marketing' ? marketingInfo(newPart(offer.s, offer.a, offer.t)).bonus : 0;
+    return { kind: 'replace', cost: price(offer) - tr - bonus, gross: price(offer), trade: tr, bonus: bonus };
   }
   function applyPurchase(build, offer) {
     var c = cloneBuild(build), k = classify(build, offer);
@@ -351,13 +356,13 @@
     });
     return { s: slot, a: list[pickWeighted(rng, aw)].id, t: tier };
   }
-  function drawOffers(build, round, rng) {
-    var o = []; for (var i = 0; i < CFG.shopSize; i++) o.push(drawOffer(build, round, rng)); return o;
+  function drawOffers(build, round, rng, keep) { // keep: locked offers carried over; the rest is filled with fresh draws
+    var o = keep ? keep.slice() : []; while (o.length < shopSizeOf(build)) o.push(drawOffer(build, round, rng)); return o;
   }
 
   // ---------- scoring ----------
-  function pointsFor(pos, n, round) {
-    var p = pos === n ? CFG.lastPoints : CFG.points[Math.min(pos - 1, CFG.points.length - 1)];
+  function pointsFor(pos, n, round, status) {
+    var p = status === 'crash' ? CFG.crashPoints : (CFG.points[pos - 1] || 0);
     return p * (1 + CFG.roundWeightStep * (round - 1));
   }
 
@@ -399,7 +404,7 @@
   function serialize(run) {
     return JSON.stringify({ v: VERSION, seed: run.seed, rs: run.rs, round: run.round, credits: run.credits, build: run.build,
       field: run.field.map(function (c) { return { id: c.id, name: c.name, player: !!c.player, ci: c.ci, points: c.points, alive: c.alive, elimRound: c.elimRound, last: c.last }; }),
-      offers: run.offers, rerollsLeft: run.rerollsLeft, history: run.history, bought: run.bought, upgrades: run.upgrades });
+      offers: run.offers, rerollsLeft: run.rerollsLeft, history: run.history, bought: run.bought, upgrades: run.upgrades, locked: !!run.locked, lastPts: run.lastPts || 0, prizeLast: run.prizeLast || 0, lockedIn: !!run.lockedIn });
   }
   function restore(str, library) {
     try {
@@ -408,7 +413,7 @@
       var ok = d.field.every(function (c) { return c.player || (library[c.ci] && library[c.ci].name === c.name); });
       if (!ok) return null;
       var run = { v: VERSION, seed: d.seed, rs: d.rs, round: d.round, credits: d.credits, build: d.build, field: d.field, phase: 'shop',
-        offers: d.offers, rerollsLeft: d.rerollsLeft, history: d.history, bought: d.bought, upgrades: d.upgrades, finalRank: null };
+        offers: d.offers, rerollsLeft: d.rerollsLeft, history: d.history, bought: d.bought, upgrades: d.upgrades, finalRank: null, locked: !!d.locked, lastPts: d.lastPts || 0, prizeLast: d.prizeLast || 0, lockedIn: !!d.lockedIn };
       run.rng = runRng(run);
       run.field.forEach(function (c) { if (!c.player) c.career = library[c.ci]; });
       return run;
@@ -426,11 +431,15 @@
   }
 
   function startShop(run) {
-    run.credits += income(run.build, run.round);
+    var m = marketingOf(run.build);
+    run.prizeLast = Math.round(m.prize * (run.lastPts || 0));
+    run.credits += income(run.build, run.round, run.lastPts);
     run.rerollsLeft = rerollsOf(run.build);
-    run.offers = drawOffers(run.build, run.round, run.rng);
+    run.offers = drawOffers(run.build, run.round, run.rng, run.locked ? run.offers : null);
+    run.lockedIn = !!run.locked; run.locked = false; // locked offers came back; the lock is used up
     run.phase = 'shop';
   }
+  function setLock(run, on) { if (run.phase !== 'shop') return false; run.locked = !!on; return true; } // free, and always reversible
   function buy(run, i) {
     var off = run.offers[i];
     if (!off || run.phase !== 'shop') return { ok: false, why: 'no offer' };
@@ -440,13 +449,16 @@
     var oldRe = rerollsOf(run.build);
     run.credits -= k.cost;
     run.build = applyPurchase(run.build, off);
-    if (off.s === 'marketing') run.rerollsLeft += Math.max(0, rerollsOf(run.build) - oldRe);
+    if (off.s === 'marketing') {
+      run.rerollsLeft += Math.max(0, rerollsOf(run.build) - oldRe);
+      while (run.offers.length < shopSizeOf(run.build)) run.offers.push(drawOffer(run.build, run.round, run.rng)); // new Scouts find more offers right away
+    }
     run.offers.splice(i, 1);
     run.bought++; if (k.kind === 'upgrade') run.upgrades++;
     return { ok: true, kind: k.kind, cost: k.cost, trade: k.trade || 0 };
   }
   function reroll(run) {
-    if (run.phase !== 'shop' || run.rerollsLeft <= 0) return false;
+    if (run.phase !== 'shop' || run.rerollsLeft <= 0 || run.locked) return false;
     run.rerollsLeft--; run.offers = drawOffers(run.build, run.round, run.rng); return true;
   }
   /* Race the current round. Returns a race report for the UI; advances the run to
@@ -458,13 +470,14 @@
     var rr = raceField(builds, T, mulberry32(run.seed * 7919 + round * 104729), { vmax: vmaxOf(round) });
     var n = cars.length, rows = [];
     cars.forEach(function (c, i) {
-      var pts = pointsFor(rr.pos[i], n, round);
+      var pts = pointsFor(rr.pos[i], n, round, rr.results[i].status);
       c.points += pts; c.last = rr.pos[i];
       rows.push({ car: c, pos: rr.pos[i], pts: pts, res: rr.results[i], build: builds[i] });
     });
     bumpExperience(run.build);
     var report = { round: round, T: T, n: n, rows: rows, eliminated: null, playerPos: rr.pos[0], playerPts: rows[0].pts };
     run.history.push({ round: round, pos: rr.pos[0], pts: rows[0].pts, status: rr.results[0].status });
+    run.lastPts = rows[0].pts;
     if (CFG.eliminateAfter.indexOf(round) >= 0) {
       var worst = cars.slice().sort(function (a, b) { return a.points - b.points || b.last - a.last; })[0];
       worst.alive = false; worst.elimRound = round; report.eliminated = worst;
@@ -561,7 +574,9 @@
       }
       default: {
         var mk = marketingInfo(p), s2 = '+' + fmt(mk.credits) + ' cr/round, ' + mk.rerolls + ' reroll' + (mk.rerolls > 1 ? 's' : '');
-        if (p.a === 'brand') s2 += ', shop quality +' + pc(mk.q);
+        if (p.a === 'sponsor') s2 += ', +' + mk.bonus + ' cr signing bonus';
+        if (p.a === 'scouts') s2 += ', +' + mk.extra + ' shop offer' + (mk.extra > 1 ? 's' : '');
+        if (p.a === 'brand') s2 += ', +' + fmt(mk.prize) + ' cr per point scored, better shop tiers +' + pc(mk.q);
         return s2;
       }
     }
@@ -573,7 +588,7 @@
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,
     income: income, shopQuality: shopQuality, rerollsOf: rerollsOf, marketingInfo: marketingInfo,
     price: price, classify: classify, applyPurchase: applyPurchase,
-    tierWeights: tierWeights, drawOffers: drawOffers, pointsFor: pointsFor,
+    tierWeights: tierWeights, drawOffers: drawOffers, drawOffer: drawOffer, shopSizeOf: shopSizeOf, setLock: setLock, pointsFor: pointsFor,
     VERSION: VERSION, serialize: serialize, restore: restore, sellValue: sellValue, sell: sell,
     newChampionship: newChampionship, startShop: startShop, buy: buy, reroll: reroll, race: race, next: next, standings: standings,
     partName: partName, partSub: partSub, stars: stars, describe: describe, expText: expText,

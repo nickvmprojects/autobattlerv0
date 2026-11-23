@@ -122,6 +122,7 @@ for (r = 1; r <= CFG.rounds; r++) {
   var s = 0; lib.forEach(function (c) { AB.SLOTS.forEach(function (sl) { s += c.builds[r - 1][sl].t; }); });
   tiers.push((s / lib.length / 6).toFixed(2));
 }
+console.log('Shop locks per career: ' + (lib.reduce(function (a, c) { return a + c.locks; }, 0) / lib.length).toFixed(2));
 console.log('Average tier across 6 slots by round: ' + tiers.join(' '));
 console.log('Tier mix at Q=0 (shop draw) by round:');
 for (r = 1; r <= CFG.rounds; r++) {
@@ -139,7 +140,7 @@ for (var ch = 0; ch < 1500; ch++) {
   for (r = 1; r <= CFG.rounds; r++) {
     var alive = field.filter(function (f) { return f.alive; });
     var res = AB.raceField(alive.map(function (f) { return f.c.builds[r - 1]; }), CFG.thresholds[r - 1], rngc, { vmax: AB.vmaxOf(r) });
-    alive.forEach(function (f, i) { f.pts += AB.pointsFor(res.pos[i], alive.length, r); f.last = res.pos[i]; });
+    alive.forEach(function (f, i) { f.pts += AB.pointsFor(res.pos[i], alive.length, r, res.results[i].status); f.last = res.pos[i]; });
     if (CFG.eliminateAfter.indexOf(r) >= 0) {
       var worst = alive.slice().sort(function (a, b) { return a.pts - b.pts || b.last - a.last; })[0];
       worst.alive = false; worst.el = r;

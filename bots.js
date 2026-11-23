@@ -27,7 +27,7 @@
   // Value of a marketing part in credits over the remaining shops.
   function marketingValue(p, shopsLeft) {
     var m = AB.marketingInfo(p);
-    return (m.credits + (m.rerolls - 1) * 4 + m.q * 60) * shopsLeft;
+    return (m.credits + (m.rerolls - 1) * 4 + m.q * 25 + m.extra * 4 + m.prize * AB.CFG.botExpectedPts) * shopsLeft;
   }
 
   function pickPersonality(rng) {
@@ -38,7 +38,8 @@
    * state: { build, credits, rerollsLeft }; returns purchases made. */
   function botShop(state, round, bot, rng, seed) {
     var bought = [], guard = 0;
-    var offers = AB.drawOffers(state.build, round, rng);
+    var offers = AB.drawOffers(state.build, round, rng, state.locked);
+    state.locked = null;
     var shopsLeft = CFG.rounds - round;
     if (bot.personality === 'saver' && round % 2 === 1 && round < CFG.rounds) return bought;
     while (guard++ < 10) {
@@ -83,10 +84,23 @@
       state.credits -= choice.cost;
       var oldRe = AB.rerollsOf(state.build);
       state.build = AB.applyPurchase(state.build, choice.off);
-      if (choice.off.s === 'marketing') state.rerollsLeft += Math.max(0, AB.rerollsOf(state.build) - oldRe);
+      if (choice.off.s === 'marketing') {
+        state.rerollsLeft += Math.max(0, AB.rerollsOf(state.build) - oldRe);
+        while (offers.length < AB.shopSizeOf(state.build)) offers.push(AB.drawOffer(state.build, round, rng));
+      }
       bought.push({ round: round, off: choice.off, kind: kind });
       offers.splice(choice.i, 1);
       if (!offers.length) break;
+    }
+    // Lock the shop when a good part is just out of reach and next round's income covers it.
+    if (round < CFG.rounds && offers.length) {
+      var cur2 = evalBuild(state.build, seed, bot.personality === 'gambler', round), reach = state.credits + AB.income(state.build, round + 1, CFG.botExpectedPts);
+      var want = offers.some(function (off) {
+        var k = AB.classify(state.build, off);
+        if (k.kind === 'maxed' || k.cost <= state.credits || k.cost > reach || off.s === 'marketing') return false;
+        return evalBuild(AB.applyPurchase(state.build, off), seed, bot.personality === 'gambler', round) > cur2 * 1.03;
+      });
+      if (want && rng() < 0.4 + 0.5 * bot.skill) { state.locked = offers.slice(); state.locks = (state.locks || 0) + 1; }
     }
     return bought;
   }
@@ -95,16 +109,16 @@
     var rng = AB.mulberry32(seed);
     var bot = { personality: pickPersonality(rng), skill: 0.15 + 0.85 * rng() };
     var name = A1[Math.floor(rng() * A1.length)] + ' ' + A2[Math.floor(rng() * A2.length)];
-    var state = { build: AB.startBuild(), credits: 0, rerollsLeft: 0 }, builds = [], log = [], upgrades = 0;
+    var state = { build: AB.startBuild(), credits: 0, rerollsLeft: 0, locked: null }, builds = [], log = [], upgrades = 0;
     for (var r = 1; r <= CFG.rounds; r++) {
-      state.credits += AB.income(state.build, r);
+      state.credits += AB.income(state.build, r, r > 1 ? CFG.botExpectedPts : 0);
       state.rerollsLeft = AB.rerollsOf(state.build);
       var got = botShop(state, r, bot, rng, seed * 31 + r);
       got.forEach(function (g) { if (g.kind === 'upgrade') upgrades++; log.push(g); });
       builds.push(AB.cloneBuild(state.build));
       AB.bumpExperience(state.build); // the parts race too, so they season
     }
-    return { name: name, personality: bot.personality, skill: bot.skill, builds: builds, upgrades: upgrades, log: log };
+    return { name: name, personality: bot.personality, skill: bot.skill, builds: builds, upgrades: upgrades, log: log, locks: state.locks || 0 };
   }
 
   function buildLibrary(n, seed) {

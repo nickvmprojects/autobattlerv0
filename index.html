@@ -36,6 +36,14 @@
   .blk.mine { background:#132238; border-top:1px solid #1f3a5c; border-right:1px solid #1f3a5c; border-bottom:1px solid #1f3a5c; }
   .blk.shop { background:#2b2214; border-top:1px solid #5a4520; border-right:1px solid #5a4520; border-bottom:1px solid #5a4520; padding:10px; margin:10px 0; }
   .bh { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .tc { display:inline-block; font-size:12px; font-weight:700; padding:1px 7px; border-radius:6px; border:1px solid currentColor; margin-left:6px; vertical-align:1px; }
+  .tc.t0 { color:#8b97a7; } .tc.t1 { color:#c9d1d9; } .tc.t2 { color:#3fb950; background:#12301a; } .tc.t3 { color:#58a6ff; background:#0f2440; } .tc.t4 { color:#f5b301; background:#3a2c05; }
+  .at { font-size:13px; font-weight:700; color:var(--text); margin-left:6px; }
+  .sticky { position:sticky; top:0; z-index:5; background:var(--bg); padding:6px 0 2px; margin:-6px 0 0; border-bottom:1px solid var(--line); }
+  .sticky .bar { margin:6px 0 4px; }
+  .fline { font-size:13px; margin:0 2px 4px; }
+  button.lock { background:#1f2a3a; border-color:#3a5a85; }
+  button.lock.on { background:#3a2c05; border-color:var(--acc); color:var(--acc); font-weight:700; }
   .sn { color:var(--k); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
   .pn { font-weight:700; }
   .d { color:var(--dim); font-size:13px; }
@@ -86,8 +94,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.5"></script>
-<script src="bots.js?v=0.5"></script>
+<script src="engine.js?v=0.6"></script>
+<script src="bots.js?v=0.6"></script>
 <script>
 (function () {
   'use strict';
@@ -113,15 +121,19 @@
   // ---------- helpers ----------
   function label(car) { return car.player ? '@' : String(car.id); }
   function teamColor(car) { return AB.colorOf(car.id).c; } // fixed per team, the player is green
+  function chips(p) { // tier badge (rarity colors) + archetype name
+    if (p.t === 0) return '<span class="tc t0">Stock</span>';
+    return '<span class="tc t' + p.t + '">T' + p.t + '</span><span class="at">' + esc(AB.archInfo(p.s, p.a).name) + '</span>';
+  }
   function partLine(p) { // compact colored line used in team details
     var xp = AB.expText(p);
-    return '<div class="pl k-' + p.s + '"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span> <b>' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></b>' +
-      '<div class="sub">' + esc(AB.partSub(p)) + '</div><div class="d">' + esc(AB.describe(p)) + '</div>' + (xp ? '<div class="xp">' + esc(xp) + '</div>' : '') + '</div>';
+    return '<div class="pl k-' + p.s + '"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + chips(p) + '<div><b>' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></b></div>' +
+      '<div class="d">' + esc(AB.describe(p)) + '</div>' + (xp ? '<div class="xp">' + esc(xp) + '</div>' : '') + '</div>';
   }
   function slotBlock(p, canSell) {
     var sell = (canSell && p.t > 0) ? '<button class="sell" data-act="sell" data-s="' + p.s + '">Sell +' + AB.sellValue(p) + '</button>' : '';
-    return '<div class="blk mine k-' + p.s + '"><div class="bh"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + sell + '</div>' +
-      '<span class="pn">' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></span><div class="sub">' + esc(AB.partSub(p)) + '</div><div class="d">' + esc(AB.describe(p)) + '</div>' +
+    return '<div class="blk mine k-' + p.s + '"><div class="bh"><span><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + chips(p) + '</span>' + sell + '</div>' +
+      '<span class="pn">' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></span><div class="d">' + esc(AB.describe(p)) + '</div>' +
       (AB.expText(p) ? '<div class="xp">' + esc(AB.expText(p)) + '</div>' : '') + '</div>';
   }
   var RISK_COL = { LOW: '#3fb950', MEDIUM: '#f0c000', HIGH: '#ff7b2e', EXTREME: '#f85149' };
@@ -134,9 +146,8 @@
     });
     var pace = !n ? '' : faster >= n * 2 / 3 ? 'front of the field' : faster >= n / 3 ? 'midfield' : 'back of the field';
     var trouble = { LOW: 'should hold up fine', MEDIUM: 'might give you a problem', HIGH: 'will probably give you trouble', EXTREME: 'could easily end your race' }[f.risk];
-    return '<div class="fc"><b>Race forecast</b><br>Pace: <b>' + pace + '</b> <span class="dim">(if your tires hold)</span><br>' +
-      'Tire risk: <b style="color:' + RISK_COL[f.risk] + '">' + f.risk + '</b>. Your tires ' + trouble + '.' +
-      (f.overheat ? '<br><span style="color:#f85149">At full push your tires won’t last the whole race.</span>' : '') + '</div>';
+    return { line: '<div class="fline">Pace <b>' + pace + '</b> · Tire risk <b style="color:' + RISK_COL[f.risk] + '">' + f.risk + '</b></div>',
+      detail: '<div class="fc">Your tires ' + trouble + '.' + (f.overheat ? ' <span style="color:#f85149">At full push they won’t last the whole race.</span>' : '') + ' <span class="dim">Pace assumes your tires hold.</span></div>' };
   }
   function standingsTable() {
     var st = AB.standings(run), h = '<table><tr><th>#</th><th>Team</th><th class="n">Pts</th></tr>';
@@ -159,7 +170,9 @@
       '<p><b style="color:var(--engine)">Engine</b> makes power, <b style="color:var(--design)">Design</b> multiplies it, <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and you risk a puncture, a blowout or a crash. <b style="color:var(--handling)">Handling</b> and <b style="color:var(--pilot)">Pilot</b> shape the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
       '<p>Every car has a top speed, and builds decide how fast it gets there. Tires wear as you push the engine, and the more worn they are, the likelier trouble gets: a puncture costs half your speed, a blowout sends you to the pits for fresh tires (you restart slowly), and a crash ends your race. The shop forecast tells you your pace and tire risk.</p>' +
       '<p>Buying the exact same part you own (same archetype and tier) upgrades it, up to 3 stars, for 75% of its price, and keeps its experience. Upgraded parts season every race and grow; pilots always gain experience. Buying a different part for a slot trades the old one in for half of what you paid. You can also sell a part for half of what you paid.</p>' +
-      '<p>Points: 1st 15, 2nd 8, 3rd 6, 4th 3, 5th 2, then 1, last place 0. Your game saves itself after every shop action.</p></details>' +
+      '<p><b style="color:var(--marketing)">Marketing</b>: Sponsors pay the most credits and a signing bonus, Scouts add shop offers and rerolls, Brand improves shop tiers and pays prize money for every point you score.</p>' +
+      '<p>Lock the shop to keep its offers for next round (free, unlock any time).</p>' +
+      '<p>Points (F1 style): 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. A crash scores 0. Your game saves itself after every shop action.</p></details>' +
       '<h2>Your stats</h2><table>' +
       '<tr><td>Championships finished</td><td class="n">' + s.runs + '</td></tr>' +
       '<tr><td>Championship wins</td><td class="n">' + s.wins + '</td></tr>' +
@@ -173,8 +186,9 @@
   // ---------- shop ----------
   function showShop(msg, isErr) {
     var T = CFG.thresholds[run.round - 1], alive = run.field.filter(function (c) { return c.alive; }).length;
-    var h = '<div class="top"><b>Round ' + run.round + '/' + CFG.rounds + ' · Shop</b><span class="dim">Finish line ' + T + '</span></div>' +
-      '<div class="bar"><span>Credits <b>' + run.credits + '</b></span><span>Rerolls <b>' + run.rerollsLeft + '</b></span><span>Cars <b>' + alive + '</b></span></div>' + forecastHTML();
+    var fc = forecastHTML();
+    var h = '<div class="sticky"><div class="top"><b>Round ' + run.round + '/' + CFG.rounds + ' · Shop</b><span class="dim">Finish line ' + T + '</span></div>' +
+      '<div class="bar"><span>Credits <b>' + run.credits + '</b></span><span>Rerolls <b>' + run.rerollsLeft + '</b></span><span>Cars <b>' + alive + '</b></span></div>' + fc.line + '</div>' + fc.detail;
     if (msg) h += '<div class="msg' + (isErr ? ' err' : '') + '">' + esc(msg) + '</div>';
     h += '<h2 class="mine">Your car</h2>';
     AB.SLOTS.forEach(function (s) { h += slotBlock(run.build[s], true); });
@@ -183,15 +197,17 @@
     run.offers.forEach(function (off, i) {
       var k = AB.classify(run.build, off), own = run.build[off.s], shown, tag;
       if (k.kind === 'upgrade') { shown = AB.applyPurchase(run.build, off)[off.s]; tag = '<div class="tag up">UPGRADE → ' + '★'.repeat(shown.u) + ' (keeps its experience)</div>'; }
-      else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'MAXED OUT' : 'replaces ' + esc(AB.partName(own)) + AB.stars(own) + (k.trade ? ' · trade-in +' + k.trade + ' cr' : '')) + '</div>'; }
+      else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'MAXED OUT' : 'replaces ' + esc(AB.partName(own)) + AB.stars(own) + (k.trade ? ' · trade-in +' + k.trade + ' cr' : '') + (k.bonus ? ' · signing bonus +' + k.bonus + ' cr' : '')) + '</div>'; }
       var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
-      h += '<div class="blk shop k-' + off.s + '"><div class="bh"><span class="sn">' + AB.SLOT_NAME[off.s] + '</span></div>' +
-        '<span class="pn">' + esc(AB.partName(shown)) + '<span class="star">' + AB.stars(shown) + '</span></span><div class="sub">' + esc(AB.partSub(shown)) + '</div>' +
+      h += '<div class="blk shop k-' + off.s + '"><div class="bh"><span><span class="sn">' + AB.SLOT_NAME[off.s] + '</span>' + chips(shown) + '</span></div>' +
+        '<span class="pn">' + esc(AB.partName(shown)) + '<span class="star">' + AB.stars(shown) + '</span></span>' +
         '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
         '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : k.cost < 0 ? 'Swap · get ' + (-k.cost) + ' cr' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
     });
-    h += '<div class="row"><button data-act="reroll"' + (run.rerollsLeft > 0 ? '' : ' disabled') + '>Reroll (' + run.rerollsLeft + ')</button>' +
-      '<button class="go" data-act="race">Race! ▶</button></div>' +
+    h += '<div class="row"><button class="lock' + (run.locked ? ' on' : '') + '" data-act="lock">' + (run.locked ? '🔒 Locked' : '🔓 Lock shop') + '</button>' +
+      '<button data-act="reroll"' + (run.rerollsLeft > 0 && !run.locked ? '' : ' disabled') + '>' + (run.locked ? 'Unlock to reroll' : 'Reroll (' + run.rerollsLeft + ')') + '</button></div>' +
+      (run.locked ? '<p class="dim" style="margin:0 0 6px">These offers come back next round. Tap Locked to unlock any time.</p>' : '') +
+      '<button class="big go" data-act="race" style="margin-top:4px">Race! ▶</button>' +
       '<details><summary>Championship standings</summary>' + standingsTable() + '</details>' +
       '<button data-act="home" style="width:100%">Menu (your game is saved)</button>';
     $.innerHTML = h;
@@ -375,12 +391,19 @@
       if (r.ok) { persist(); showShop('Sold ' + r.name + ' for ' + r.value + ' cr.'); }
     },
     reroll: function () { if (AB.reroll(run)) { persist(); showShop('Offers rerolled.'); } },
+    lock: function () { AB.setLock(run, !run.locked); persist(); showShop(run.locked ? 'Shop locked: these offers will be waiting next round.' : 'Shop unlocked.'); },
     race: function () { report = AB.race(run); showRace(report); window.scrollTo(0, 0); }, // not saved: a reload replays the same race from the shop
     skip: function () { if (showRace.skip) showRace.skip(); },
     after: function () {
       var s = loadStats(); s.raceN++; s.placeSum += report.playerPos; saveStats(s);
       if (run.phase === 'dead' || run.phase === 'finished') { clearSave(); showEnd(); }
-      else { AB.next(run); persist(); showShop(); }
+      else {
+        AB.next(run); persist();
+        var notes = [];
+        if (run.prizeLast > 0) notes.push('Brand prize money: +' + run.prizeLast + ' cr.');
+        if (run.lockedIn) notes.push('Your locked offers are back.');
+        showShop(notes.join(' '));
+      }
       window.scrollTo(0, 0);
     }
   };
