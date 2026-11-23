@@ -2,7 +2,19 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.10b)
+## Changes in this version (v0.12)
+
+- **Circuits**: `AB.CIRCUITS` (10) with shape points, colours, home announcer and gameplay `fx` (grip, top, wear, turn, puncture, power + turboImmune, spread, pitKeep, crowd). `calendarOf(seed)` draws 9 different ones per championship; `circuitOf(run, round)`. Effects apply in `prepareCar(build, { circuit })`; the race, forecast and metrics pass it. Recorded rivals don't know the calendar.
+- Shop: next circuit with its effects, plus the one after (name and theme only). Race header, track drawing, scenery and announcer follow the circuit.
+- Measured (800 championships, random calendars): seasoned 19% win / 47% podium, expert 21% / 50%.
+
+## Previous version (v0.11)
+
+- Night Circuit look (index.html rewrite): canvas-drawn circuit from a Catmull-Rom spline through each circuit's points (`HOUSE` in index.html), smooth requestAnimationFrame playback, sparks/smoke/fire/pit tag, start-light gantry.
+- Live racer view (canvas strip following you and the 3 nearest cars), TV timing tower, talking announcer heads (inline SVG, CSS mouth animation, off with reduced motion) with catchphrases and a full call sheet after the race.
+- Shop cards: slot icons, pips per stat normalised against every part of the slot (`STATDEF` in index.html), vs-your-part line. engine.js exports tireInfo/handlingInfo/pilotInfo/loadFactor for this.
+
+## Previous version (v0.10b)
 
 - Rerolls: every marketing part +3 (`CFG.rerollBonus`), stock marketing +2 (`CFG.rerollStock`): stock 3, marketing parts 4-5.
 - Sponsor signing bonus 70% lower (`CFG.sponsorBonus` 1.5 per tier, rounded).
