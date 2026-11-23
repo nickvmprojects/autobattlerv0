@@ -2,7 +2,13 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.10)
+## Changes in this version (v0.10b)
+
+- Rerolls: every marketing part +3 (`CFG.rerollBonus`), stock marketing +2 (`CFG.rerollStock`): stock 3, marketing parts 4-5.
+- Sponsor signing bonus 70% lower (`CFG.sponsorBonus` 1.5 per tier, rounded).
+- Measured (600 championships): seasoned 18% win / 47% podium (v0.10: 14% / 45%).
+
+## Previous version (v0.10)
 
 - **Design = power + top speed**: race speed = capSpeed(engine x boosts x (1 + designPower x design), vmax x (1 + design)). `CFG.design` [0, .30, .45, .65, .90], `CFG.designPower` 1.
 - **Handling partners design**: stock grip 0.40, +0.18 per effective tier; every handling part cuts crashes up to 30%; handling parts cost 15% less (`CFG.handlingPrice`). Spin-out chance when out of control 2%.

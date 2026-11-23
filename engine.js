@@ -17,7 +17,8 @@
     // F1 points per finishing position (index 0 = 1st); positions past the list get 0; a crash scores crashPoints
     points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], crashPoints: 0,
     // Marketing: every marketing part adds mktBase credits; Sponsor signing bonus per tier, Brand prize money per point and tier
-    mktBase: 2, sponsorBonus: 5, brandPrize: 0.25, botExpectedPts: 10,
+    mktBase: 2, sponsorBonus: 1.5, rerollBonus: 3, rerollStock: 2, // rerolls added on top: every marketing part +3, the stock Lemonade Stand +2
+    brandPrize: 0.25, botExpectedPts: 10,
     roundWeightStep: 0,            // score weight added per round (0 = no round weights)
     incomeBase: 12, incomePerRound: 6,
     designPower: 1,                  // Design adds this share of its bonus as power, and its full bonus as top speed
@@ -59,9 +60,12 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.10';
+  var VERSION = '0.10b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.10b', items: [
+      'More rerolls: every marketing part gives 3 extra rerolls per shop, and the stock Lemonade Stand gives 2 extra.',
+      'Sponsor signing bonus cut by 70% (now about 1.5 credits per tier).'] },
     { v: '0.10', items: [
       'Design now raises top speed as well as power, so it matters most late in the championship when cars hit their top speed. Design bonuses are bigger.',
       'Handling is design’s partner: faster cars need more grip, stock grip is lower, every handling part also makes crashes a bit rarer, and handling parts cost 15% less.',
@@ -235,10 +239,11 @@
     var m = mult(p) * season(p), l = lv(p), base = p.t > 0 ? CFG.mktBase : 0;
     var info = { credits: base, rerolls: 1, q: 0, extra: 0, bonus: 0, prize: 0, find: 0, fans: 0, crowd: 0 };
     switch (p.a) {
-      case 'sponsor': info.credits += 5 * p.t * m; info.rerolls = 1 + (l >= 2 ? 1 : 0); info.bonus = CFG.sponsorBonus * p.t; break;
+      case 'sponsor': info.credits += 5 * p.t * m; info.rerolls = 1 + (l >= 2 ? 1 : 0); info.bonus = Math.round(CFG.sponsorBonus * p.t); break;
       case 'scouts': info.credits += 2 * p.t * m; info.rerolls = 1 + Math.floor(l); info.extra = p.t >= 3 ? 2 : 1; info.find = Math.min(CFG.scoutFind[2], CFG.scoutFind[0] + CFG.scoutFind[1] * l); break;
       case 'brand': info.credits += 2 * p.t * m; info.fans = Math.min(CFG.brandFans[1], CFG.brandFans[0] * l); info.crowd = Math.min(CFG.brandCrowd[1], CFG.brandCrowd[0] * l); info.prize = CFG.brandPrize * p.t * m; break;
     }
+    info.rerolls += p.t > 0 ? CFG.rerollBonus : CFG.rerollStock;
     return info;
   }
 
