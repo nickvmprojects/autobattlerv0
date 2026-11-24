@@ -27,6 +27,7 @@
     pilotAccel: 0.02,                // pilot: momentum builds 2% faster per effective tier
     bookie: [6, 2],                  // Bookie: podium pays 6 cr per tier, finishing outside the top 5 costs 2 per tier
     insure: { pts: [0, 2, 3, 4, 5], cash: 6 }, // Insurance: a crash still scores pts[tier] and pays cash x tier at the next shop
+    teamCash: 10,                    // team perk: starting credits
     grudge: 3,                       // Grudge: every rival that started above you and finished behind you pays 3 cr x tier
     dare: [0.04, 0.2],               // Daredevil: +4% power (x tier scale) per trouble survived, at most +20%
     slip: 0.12,                      // Slipstream: up to +12% power (x tier scale) when last in the standings
@@ -69,9 +70,13 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.15b';
+  var VERSION = '0.16b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.16b', items: [
+      'Pick your team: every championship starts with three team cards. Each has its own driver (now you have a face too), team colours and a small head start: a free part, extra credits, a free reroll every round or a Sponsor deal.',
+      'Speedometer in the Your car panel, plus laps and distance to go. The needle shakes when handling gets shaky.',
+      'Shop offers speak plainly now: icon chips for time (⏱), tire wear (🛞 or 🔥 overheats) and crash odds (💥), and every part has a one-line description with stat arrows. Tap “details” for the exact numbers.'] },
     { v: '0.15b', items: [
       'Meet the new grid: 22 racers in 11 art styles, from 80s cel divas and a plush doll to a coyote pilot and an octopus with a wrench. Each has her own face for winning and for crashing.',
       'VS screen before every race: you against the team just ahead of you in the standings. Tap to skip.',
@@ -660,7 +665,7 @@
   function serialize(run) {
     return JSON.stringify({ v: VERSION, seed: run.seed, rs: run.rs, round: run.round, credits: run.credits, build: run.build,
       field: run.field.map(function (c) { return { id: c.id, name: c.name, player: !!c.player, ci: c.ci, points: c.points, alive: c.alive, elimRound: c.elimRound, last: c.last }; }),
-      offers: run.offers, rerollsLeft: run.rerollsLeft, history: run.history, bought: run.bought, upgrades: run.upgrades, locked: !!run.locked, lastPts: run.lastPts || 0, prizeLast: run.prizeLast || 0, lockedIn: !!run.lockedIn });
+      offers: run.offers, rerollsLeft: run.rerollsLeft, history: run.history, bought: run.bought, upgrades: run.upgrades, locked: !!run.locked, lastPts: run.lastPts || 0, team: run.team || null, freeRe: !!run.freeRe, prizeLast: run.prizeLast || 0, lockedIn: !!run.lockedIn });
   }
   function restore(str, library) {
     try {
@@ -669,7 +674,7 @@
       var ok = d.field.every(function (c) { return c.player || (library[c.ci] && library[c.ci].name === c.name); });
       if (!ok) return null;
       var run = { v: VERSION, seed: d.seed, rs: d.rs, round: d.round, credits: d.credits, build: d.build, field: d.field, phase: 'shop',
-        offers: d.offers, rerollsLeft: d.rerollsLeft, history: d.history, bought: d.bought, upgrades: d.upgrades, finalRank: null, locked: !!d.locked, lastPts: d.lastPts || 0, prizeLast: d.prizeLast || 0, lockedIn: !!d.lockedIn };
+        offers: d.offers, rerollsLeft: d.rerollsLeft, history: d.history, bought: d.bought, upgrades: d.upgrades, finalRank: null, locked: !!d.locked, lastPts: d.lastPts || 0, prizeLast: d.prizeLast || 0, lockedIn: !!d.lockedIn, team: d.team || null, freeRe: !!d.freeRe };
       run.rng = runRng(run);
       run.field.forEach(function (c) { if (!c.player) c.career = library[c.ci]; });
       return run;
@@ -686,12 +691,45 @@
     return { ok: true, value: v, name: name };
   }
 
+  /* Team selection: three team cards at the start of a championship. Each: a team name, a colour, a racer to drive as
+   * (index into the UI's roster of nRacers) and one small starting perk. Drawn from the seed, so a resumed run gets the same cards. */
+  var TEAM_A = ['Neon', 'Rusty', 'Midnight', 'Thunder', 'Velvet', 'Chrome', 'Feral', 'Lucky', 'Burnout', 'Static', 'Voodoo', 'Atomic'];
+  var TEAM_B = ['Rebels', 'Comets', 'Wreckers', 'Hornets', 'Outlaws', 'Phantoms', 'Riot', 'Dynamos', 'Jackals', 'Saints', 'Vandals', 'Furies'];
+  var TEAM_C = ['#3ddc6f', '#ff2d55', '#00b3ff', '#ffb000', '#b14dff', '#ff5ec4', '#c6ff00', '#ff7a1a'];
+  function teamOffers(run, nRacers) {
+    var r = mulberry32((run.seed ^ 0x5eed) >>> 0), pick = function (a) { return a[Math.floor(r() * a.length)]; }, used = {}, cols = {}, out = [];
+    var kinds = ['part', 'cash', 'reroll', 'sponsor'].sort(function () { return r() - 0.5; });
+    for (var i = 0; i < 3; i++) {
+      var ri; do { ri = Math.floor(r() * nRacers); } while (used[ri]); used[ri] = 1;
+      var c; do { c = pick(TEAM_C); } while (cols[c]); cols[c] = 1;
+      var perk = { k: kinds[i] };
+      if (perk.k === 'part') { var sl = pick(['engine', 'design', 'tires', 'handling', 'pilot']); perk.s = sl; perk.a = pick(ARCH[sl]).id; }
+      out.push({ name: pick(TEAM_A) + ' ' + pick(TEAM_B), color: c, racer: ri, perk: perk });
+    }
+    return out;
+  }
+  function perkText(perk) {
+    if (perk.k === 'part') return 'Starts with a free T1 ' + archInfo(perk.s, perk.a).name + ' ' + SLOT_NAME[perk.s].toLowerCase();
+    if (perk.k === 'cash') return '+' + CFG.teamCash + ' starting credits';
+    if (perk.k === 'reroll') return 'First reroll every round is free';
+    return 'Starts with a T1 Sponsor deal';
+  }
+  function pickTeam(run, t) {
+    if (run.team) return false;
+    run.team = t;
+    if (t.perk.k === 'part') run.build[t.perk.s] = newPart(t.perk.s, t.perk.a, 1);
+    if (t.perk.k === 'cash') run.credits += CFG.teamCash;
+    if (t.perk.k === 'sponsor') run.build.marketing = newPart('marketing', 'sponsor', 1);
+    run.freeRe = t.perk.k === 'reroll';
+    return true;
+  }
   function startShop(run) {
     var m = marketingOf(run.build);
     run.prizeLast = Math.round(m.prize * (run.lastPts || 0));
     run.credits += income(run.build, run.round, run.lastPts);
     run.bookieLast = run.bookie || 0; run.credits = Math.max(0, run.credits + run.bookieLast); run.bookie = 0;
     run.rerollsLeft = rerollsOf(run.build);
+    run.freeRe = !!(run.team && run.team.perk.k === 'reroll');
     run.offers = drawOffers(run.build, run.round, run.rng, run.locked ? run.offers : null);
     run.lockedIn = !!run.locked; run.locked = false; // locked offers came back; the lock is used up
     run.phase = 'shop';
@@ -715,8 +753,9 @@
     return { ok: true, kind: k.kind, cost: k.cost, trade: k.trade || 0 };
   }
   function reroll(run) {
-    if (run.phase !== 'shop' || run.rerollsLeft <= 0 || run.locked) return false;
-    run.rerollsLeft--; run.offers = drawOffers(run.build, run.round, run.rng); return true;
+    if (run.phase !== 'shop' || (run.rerollsLeft <= 0 && !run.freeRe) || run.locked) return false;
+    if (run.freeRe) run.freeRe = false; else run.rerollsLeft--;
+    run.offers = drawOffers(run.build, run.round, run.rng); return true;
   }
   /* Race the current round. Returns a race report for the UI; advances the run to
    * the next shop, elimination, or the end. The UI calls next() after showing it. */
@@ -889,7 +928,7 @@
   }
 
   return {
-    CHANGELOG: CHANGELOG, CIRCUITS: CIRCUITS, calendarOf: calendarOf, circuitOf: circuitOf, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, partImpact: partImpact, raceProfile: raceProfile, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
+    CHANGELOG: CHANGELOG, CIRCUITS: CIRCUITS, calendarOf: calendarOf, circuitOf: circuitOf, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, teamOffers: teamOffers, pickTeam: pickTeam, perkText: perkText, partImpact: partImpact, raceProfile: raceProfile, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
     CFG: CFG, SLOTS: SLOTS, SLOT_NAME: SLOT_NAME, ARCH: ARCH, archInfo: archInfo,
     mulberry32: mulberry32, gauss: gauss, pickWeighted: pickWeighted,
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,
