@@ -53,7 +53,13 @@
   .st { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; font-style:italic; text-transform:uppercase; }
   .st .l { width:104px; flex-shrink:0; white-space:nowrap; }
   .pips { display:flex; gap:3px; }
-  .imp { font-size:14px; margin:6px 0 2px; line-height:1.35; } .imp .ih { font-weight:800; letter-spacing:.5px; color:var(--acc); margin-right:2px; } .imp .p { color:var(--good); font-weight:700; } .imp .m { color:var(--bad); font-weight:700; }
+  .imp { display:flex; flex-wrap:wrap; gap:4px; align-items:center; font-size:14px; margin:6px 0 2px; } .imp .ic { background:#ffffff10; border-radius:6px; padding:1px 6px; font-weight:700; } .imp .ic.n { color:var(--dim); font-weight:600; }
+  .pd .scs { white-space:nowrap; } .pd .sc { display:inline-block; font-size:12px; font-weight:700; background:#ffffff10; border-radius:5px; padding:0 4px; margin-right:3px; } .pd .sc.up { color:var(--good); } .pd .sc.dn { color:var(--bad); }
+  .det { background:none; border:none; color:var(--acc); font-size:12px; padding:0 2px; text-decoration:underline; min-height:0; } .dx { display:none; font-size:12px; color:var(--dim); margin-top:2px; } .dx.open { display:block; }
+  .spd { display:flex; flex-direction:column; align-items:center; } .gauge { width:170px; height:auto; display:block; } .sdist { font-weight:700; font-style:italic; font-size:14px; margin:2px 0 6px; }
+  .meface { box-shadow:0 0 0 2px #3ddc6f; }
+  .teamcard { display:flex; gap:10px; align-items:center; width:100%; text-align:left; background:#151b2b; border:2px solid var(--tc); border-radius:12px; padding:8px; margin-bottom:10px; color:var(--text); }
+  .teamcard img { width:92px; border-radius:8px; flex-shrink:0; } .tci { display:flex; flex-direction:column; gap:3px; } .tcn { font-size:22px; font-weight:800; font-style:italic; color:var(--tc); text-transform:uppercase; line-height:1; } .tcr { font-size:14px; color:var(--dim); } .tcp { font-size:15px; font-weight:700; } .imp .ih { font-weight:800; letter-spacing:.5px; color:var(--acc); margin-right:2px; } .imp .p { color:var(--good); font-weight:700; } .imp .m { color:var(--bad); font-weight:700; }
   .pip { width:12px; height:12px; border-radius:50%; border:2px solid #3a4562; background:transparent; }
   .pip.on { border-color:var(--acc); background:var(--acc); }
   .pip.bad { border-color:var(--bad); background:var(--bad); }
@@ -156,9 +162,9 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.15b"></script>
-<script src="portraits.js?v=0.15b"></script>
-<script src="bots.js?v=0.15b"></script>
+<script src="engine.js?v=0.16b"></script>
+<script src="portraits.js?v=0.16b"></script>
+<script src="bots.js?v=0.16b"></script>
 <script>
 (function () {
   'use strict';
@@ -197,10 +203,11 @@
   function nameHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   var faceCache = { run: null, map: null };
   var RACERS = Portraits.RACERS;
-  function faceOf(car) { // each rival team keeps one racer (picked from its name), no two in the same field
-    if (car.player) return null;
+  function faceOf(car) { // each rival team keeps one racer (picked from its name), no two in the same field; you drive your team's racer
+    if (car.player) return run && run.team ? RACERS[run.team.racer % RACERS.length] : null;
     if (faceCache.run !== run) {
       var taken = {}, map = {};
+      if (run.team) taken[run.team.racer % RACERS.length] = 1;
       run.field.forEach(function (c) { if (c.player) return; var i = (nameHash(c.name) >>> 3) % RACERS.length; while (taken[i]) i = (i + 1) % RACERS.length; taken[i] = 1; map[c.id] = RACERS[i]; });
       faceCache = { run: run, map: map };
     }
@@ -211,15 +218,16 @@
   function faceHTML(car, px, mood) {
     var r = faceOf(car);
     if (!r) return youBadge(px);
-    return '<img class="face" alt="" style="width:' + px + 'px;height:' + px + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: AB.colorOf(car.id).c, crop: true }) + '">';
+    return '<img class="face' + (car.player ? ' meface' : '') + '" alt="" style="width:' + px + 'px;height:' + px + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: jacketOf(car), crop: true }) + '">';
   }
   // Full head-and-shoulders portrait (podium, VS splash).
   function bigFace(car, w, mood) {
     var r = faceOf(car);
     if (!r) return '<div class="bigyou" style="width:' + w + 'px;height:' + Math.round(w * 1.25) + 'px"><span>' + esc(myFlag()) + '</span>YOU</div>';
-    return '<img class="bigface" alt="" style="width:' + w + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: AB.colorOf(car.id).c }) + '">';
+    return '<img class="bigface' + (car.player ? ' meface' : '') + '" alt="" style="width:' + w + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: jacketOf(car) }) + '">';
   }
   function racerName(car) { var r = faceOf(car); return r ? r.name : 'You'; }
+  function jacketOf(car) { return car.player ? (run.team ? run.team.color : '#3ddc6f') : AB.colorOf(car.id).c; }
 
   // ---------- circuits (v0.11: one house circuit; later versions draw several) ----------
   function circuitFor(run, round) { return AB.circuitOf(run, round); }
@@ -275,18 +283,67 @@
       return '<div class="st"><span class="l">' + x.l + '</span><span class="pips">' + h + '</span></div>';
     }).join('') + '</div>';
   }
+  // Plain-language part descriptions with stat icons; the exact numbers sit behind a "details" tap.
+  // Icons: ⚡ power · 🏁 top speed · 🛞 tire life · 🎯 grip · 🛡 safety · 🎲 luck swing · 🔧 repairs · 📈 growth · 🔙 comeback
+  var PLAIN = {
+    base_engine: ['Factory engine. Gets the job done, barely.', []], base_design: ['A box on wheels.', []], base_tires: ['Bald rubber. Wears out fast.', [['🛞', -1]]],
+    base_handling: ['No help in the corners.', []], base_pilot: ['Your cousin. Steady, never great.', []], base_marketing: ['Lemonade stand money.', []],
+    sprinter: ['Explodes off the line, runs out of breath at the top.', [['⚡', 1], ['🏁', -1]]],
+    endurance: ['Sluggish start, monstrous top end.', [['⚡', -1], ['🏁', 2]]],
+    turbo: ['Huge power, but it cooks your tires.', [['⚡', 2], ['🛞', -1]]],
+    nitro: ['Saves a nitro blast for the final lap.', [['⚡', 1], ['🏁', 1]]],
+    diesel: ['Torque from the start, flat top end, easy on tires.', [['⚡', 1], ['🏁', -1], ['🛞', 1]]],
+    aero: ['Gets faster the longer the race goes.', [['⚡', 1], ['🏁', 1]]],
+    ground: ['Glued to the road: speed and grip.', [['⚡', 1], ['🎯', 1]]],
+    light: ['Feather-light and gentle on tires.', [['⚡', 1], ['🛞', 1]]],
+    rnd: ['Speed now, better upgrade offers later.', [['⚡', 1], ['📈', 1]]],
+    armored: ['Crashes become bounces: you keep racing.', [['⚡', 1], ['🛡', 2]]],
+    slip: ['Rides the draft: stronger the further you trail.', [['⚡', 1], ['🔙', 2]]],
+    hard: ['Lasts forever, no frills.', [['🛞', 2]]],
+    soft: ['Sticky and fast, wears out sooner.', [['⚡', 1], ['🛞', -1]]],
+    reinforced: ['You can’t crash on these. Pit stops hurt less.', [['🛡', 2], ['🛞', -1]]],
+    allweather: ['Full grip in rain and ice.', [['🎯', 1], ['🛞', 1]]],
+    runflat: ['Punctures don’t slow you, but a spin means a pit stop.', [['🔧', 1], ['🛞', -1]]],
+    slicks: ['Bulletproof until 60% worn, then fragile. Hate the rain.', [['⚡', 1], ['🛞', 1], ['🛡', -1]]],
+    stabilizer: ['Calm and safe through every corner.', [['🎯', 1], ['🛡', 1]]],
+    traction: ['Saves your tires when things get shaky.', [['🎯', 1], ['🛞', 2]]],
+    setup: ['Tuned for a great pilot day.', [['🎯', 1], ['🎲', 1]]],
+    drift: ['Slides through corners without losing speed.', [['🎯', 1], ['⚡', 1]]],
+    veteran: ['Steady hands. Never brilliant, never a disaster.', [['🎲', -1], ['🛡', 1]]],
+    wildcard: ['Genius or disaster, every single race.', [['🎲', 2], ['⚡', 1], ['🛡', -1]]],
+    opportunist: ['Starts slow, saves tires, strikes late.', [['🛞', 1], ['🏁', 1]]],
+    prodigy: ['Rookie today, star tomorrow: learns twice as fast.', [['🎲', -1], ['📈', 2]]],
+    daredevil: ['Every scare makes her faster.', [['⚡', 1], ['🛡', -1]]],
+    mechanic: ['Patches the car up mid-race.', [['🔧', 2]]],
+    sponsor: ['Big cash every round.', []], scouts: ['Finds copies of your parts and an extra offer.', [['📈', 1]]],
+    brand: ['Fans cheer you on and pay per point.', [['🔙', 1]]], bookie: ['Bets on you: podiums pay, bad races cost.', [['🎲', 1]]],
+    pitcrew: ['Faster pit stops and puncture fixes.', [['🔧', 1]]], insurance: ['A crash still pays out and scores points.', [['🛡', 1]]],
+    grudge: ['Cash for every rival above you that you beat.', [['🔙', 1]]]
+  };
+  function plainHTML(p) {
+    var e = PLAIN[p.a === 'base' ? 'base_' + p.s : p.a] || [AB.describe(p), []], st = e[1].map(function (x) { return '<span class="sc ' + (x[1] > 0 ? 'up' : 'dn') + '">' + x[0] + (x[1] > 1 ? '▲▲' : x[1] > 0 ? '▲' : '▼') + '</span>'; });
+    if (p.s === 'marketing') { var m = AB.marketingInfo(p); st.unshift('<span class="sc up">💰+' + Math.round(m.credits) + '/rd</span>', '<span class="sc">🔁' + m.rerolls + '</span>'); }
+    return '<div class="d pd">' + esc(e[0]) + (st.length ? ' <span class="scs">' + st.join('') + '</span>' : '') +
+      ' <button class="det" onclick="this.nextSibling.classList.toggle(\'open\');this.textContent=this.nextSibling.classList.contains(\'open\')?\'hide\':\'details\'">details</button><div class="dx">' + esc(AB.describe(p)) + '</div></div>';
+  }
   // Shop part info (v0.14b): what this offer does to your car in the next race, measured by replaying it.
   function impactHTML(off, shown, own) {
+    var chip = function (cls, txt) { return '<span class="ic ' + cls + '">' + txt + '</span>'; };
     if (off.s === 'marketing') {
       var m1 = AB.marketingInfo(shown), m0 = AB.marketingInfo(own), dc = Math.round(m1.credits - m0.credits), dr = m1.rerolls - m0.rerolls;
-      return '<div class="imp"><span class="ih">ON YOUR CAR</span> <span class="' + (dc >= 0 ? 'p' : 'm') + '">' + (dc >= 0 ? '+' : '−') + Math.abs(dc) + ' cr per round</span> · <span class="' + (dr >= 0 ? 'p' : 'm') + '">' + (dr >= 0 ? '+' : '−') + Math.abs(dr) + ' reroll' + (Math.abs(dr) === 1 ? '' : 's') + '</span> · <span class="dim">no effect on speed</span></div>';
+      return '<div class="imp"><span class="ih">NEXT RACE</span>' + chip(dc >= 0 ? 'p' : 'm', '💰 ' + (dc >= 0 ? '+' : '−') + Math.abs(dc) + '/round') + (dr ? chip(dr > 0 ? 'p' : 'm', '🔁 ' + (dr > 0 ? '+' : '−') + Math.abs(dr)) : '') + chip('n', '⏱ no change') + '</div>';
     }
     var ctx = { behind: AB.playerBehind(run), circuit: circuitFor(run, run.round) }, x = AB.partImpact(run.build, off, run.round, ctx);
-    var dt = Math.round(x.dt * 10) / 10, t = Math.abs(dt) < 0.1 ? '<span class="dim">same pace</span>' : '<span class="' + (dt < 0 ? 'p' : 'm') + '">' + (dt < 0 ? '−' : '+') + Math.abs(dt).toFixed(1) + ' s per race</span>';
-    var w0 = Math.round(x.w0), w1 = Math.round(x.w1), wl = function (w) { return w > 100 ? 'overheat' : w + '%'; };
-    var w = '<span class="' + (w1 <= w0 ? (w1 < w0 ? 'p' : 'dim') : 'm') + '">tires ' + wl(w0) + ' → ' + wl(w1) + ' worn</span>';
-    var c0 = Math.round(x.crash0 * 100), c1 = Math.round(x.crash1 * 100), c = '<span class="' + (c1 === c0 ? 'dim' : c1 < c0 ? 'p' : 'm') + '">crash ' + c0 + '% → ' + c1 + '%</span>';
-    return '<div class="imp"><span class="ih">ON YOUR CAR</span> ' + t + ' · ' + w + ' · ' + c + '</div>';
+    var dt = Math.round(x.dt * 10) / 10, out = [];
+    out.push(Math.abs(dt) < 0.1 ? chip('n', '⏱ same') : chip(dt < 0 ? 'p' : 'm', '⏱ ' + (dt < 0 ? '−' : '+') + Math.abs(dt).toFixed(1) + 's'));
+    var w0 = Math.round(x.w0), w1 = Math.round(x.w1);
+    if (w0 > 100 && w1 > 100) out.push(chip('m', '🔥 still overheats'));
+    else if (w1 > 100) out.push(chip('m', '🔥 overheats'));
+    else if (w0 > 100) out.push(chip('p', '🛞 no overheating'));
+    else if (Math.abs(w1 - w0) >= 2) out.push(chip(w1 < w0 ? 'p' : 'm', '🛞 ' + w0 + '→' + w1 + '% worn'));
+    var c0 = Math.round(x.crash0 * 100), c1 = Math.round(x.crash1 * 100);
+    out.push(c1 === c0 ? chip('n', '💥 ' + c1 + '%') : chip(c1 < c0 ? 'p' : 'm', '💥 ' + c0 + '→' + c1 + '%'));
+    return '<div class="imp"><span class="ih">NEXT RACE</span>' + out.join('') + '</div>';
   }
   function vsHTML(nw, own) {
     var a = pipsOf(nw), b = pipsOf(own), parts = [];
@@ -309,7 +366,7 @@
   }
   function slotCard(p, canSell) {
     var sell = (canSell && p.t > 0) ? '<button class="sell" data-act="sell" data-s="' + p.s + '">Sell +' + AB.sellValue(p) + '</button>' : '';
-    return '<div class="card mine k-' + p.s + '" style="--k:var(--' + p.s + ')">' + partHead(p) + sell + '</div>' + '<div class="d">' + esc(AB.describe(p)) + '</div>' +
+    return '<div class="card mine k-' + p.s + '" style="--k:var(--' + p.s + ')">' + partHead(p) + sell + '</div>' + plainHTML(p) +
       (AB.expText(p) ? '<div class="xp">' + esc(AB.expText(p)) + '</div>' : '') + '</div>';
   }
   function partLine(p) { return '<div class="pl" style="--k:var(--' + p.s + ')"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + chips(p) + ' <b>' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></b><div class="d">' + esc(AB.describe(p)) + '</div></div>'; }
@@ -386,11 +443,11 @@
       else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'Maxed out' : 'Replaces ' + esc(AB.partName(own)) + AB.stars(own) + (k.trade ? ' · trade-in +' + k.trade : '') + (k.bonus ? ' · bonus +' + k.bonus : '')) + '</div>'; }
       var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
       h += '<div class="card" style="--k:var(--' + off.s + ')">' + partHead(shown) + '</div>' + (k.kind === 'maxed' ? '' : impactHTML(off, shown, own)) +
-        '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
+        plainHTML(shown) + tag +
         '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : k.cost < 0 ? 'Swap · get ' + (-k.cost) + ' cr' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
     });
     h += '<div class="row"><button class="lock' + (run.locked ? ' on' : '') + '" data-act="lock">' + (run.locked ? 'Locked' : 'Lock shop') + '</button>' +
-      '<button data-act="reroll"' + (run.rerollsLeft > 0 && !run.locked ? '' : ' disabled') + '>' + (run.locked ? 'Unlock to reroll' : 'Reroll (' + run.rerollsLeft + ')') + '</button></div>' +
+      '<button data-act="reroll"' + ((run.rerollsLeft > 0 || run.freeRe) && !run.locked ? '' : ' disabled') + '>' + (run.locked ? 'Unlock to reroll' : run.freeRe ? 'Reroll (free!)' : 'Reroll (' + run.rerollsLeft + ')') + '</button></div>' +
       (run.locked ? '<p class="dim" style="margin:0 0 6px">These offers come back next round. Tap Locked to unlock any time.</p>' : '') +
       '<button class="big go" data-act="race">Race! ▶</button>';
     h += '<h2>Your car</h2>';
@@ -473,6 +530,19 @@
     var r = row.res, tt = r.totals, L = tt.length - 1, s = w.s, i0 = Math.min(s, L), i1 = Math.min(s + 1, L);
     var a = tt[i0], b = tt[i1], wa = r.wr[i0], wb = r.wr[i1];
     return { s: s, L: L, tot: a + (b - a) * w.fr, code: r.st[i1], hs: r.hs[i1], wear: wa + (wb - wa) * w.fr, done: s >= L };
+  }
+  // Speedometer: km/h = 60·√(engine speed per step), so round 1 cars do ~160 km/h and round 9 monsters ~950.
+  function kmh(v) { return Math.round(60 * Math.sqrt(Math.max(0, v))); }
+  function kmText(units) { var m = units * 40; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m / 10) * 10 + ' m'; }
+  function gaugeMax(round) { return Math.ceil(kmh(AB.vmaxOf(round) * 1.9) / 100) * 100; }
+  function gaugeHTML(val, max, red, hs, dead) {
+    var ang = function (k) { return Math.PI * (1 - Math.min(1, k / max)); }, P = function (k, r) { var a = ang(k); return (60 + r * Math.cos(a)).toFixed(1) + ',' + (62 - r * Math.sin(a)).toFixed(1); };
+    var jit = hs === 2 ? (Math.random() - 0.5) * 0.25 * max : hs === 1 ? (Math.random() - 0.5) * 0.06 * max : 0, nv = Math.max(0, Math.min(max, val + jit));
+    var ticks = ''; for (var k = 0; k <= 6; k++) { var t = max * k / 6; ticks += '<path d="M' + P(t, 44) + ' L' + P(t, 50) + '" stroke="#9aa6c0" stroke-width="2"/>' + (k % 2 === 0 ? '<text x="' + P(t, 34).split(',')[0] + '" y="' + (+P(t, 34).split(',')[1] + 3) + '" font-size="8" fill="#9aa6c0" text-anchor="middle">' + Math.round(t) + '</text>' : ''); }
+    var arc = function (a, b, col, w) { return '<path d="M' + P(a, 50) + ' A50,50 0 0,1 ' + P(b, 50) + '" fill="none" stroke="' + col + '" stroke-width="' + w + '"/>'; };
+    return '<svg class="gauge" viewBox="0 0 120 72">' + arc(0, max, '#253050', 6) + arc(Math.min(red, max), max, '#ff3b3b', 6) + arc(0, nv, hs === 2 ? '#ff3b3b' : hs === 1 ? '#ffb000' : '#3ddc6f', 3) + ticks +
+      '<path d="M60,62 L' + P(nv, 46) + '" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="60" cy="62" r="4" fill="#fff"/>' +
+      '<text x="60" y="58" font-size="15" font-weight="800" font-style="italic" fill="' + (dead ? '#ff3b3b' : '#fff') + '" text-anchor="middle">' + (dead ? '✕' : Math.round(nv)) + '</text><text x="60" y="70" font-size="7" fill="#9aa6c0" text-anchor="middle">KM/H</text></svg>';
   }
   function zoneOf(wear) { var z = 0; CFG.wear.marks.forEach(function (m) { if (wear >= m) z++; }); return wear >= 100 ? 5 : z; }
   var EV_TXT = { bounce: 'Hit the wall! The armour saved you', turn: 'Spun around! Lost some ground', puncture: 'Puncture: lost speed', pit: 'Blowout! Pit stop for fresh tires', crash: 'Crashed out', spin: 'Lost control and spun out of the race' };
@@ -717,7 +787,11 @@
       var st = carState(me, w), wear = Math.max(0, st.wear), z = zoneOf(wear);
       var shown = me.res.events.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
       var hw = st.done ? '' : ['<span style="color:var(--good)">steady</span>', '<span style="color:var(--acc)">shaky</span>', '<span style="color:var(--bad)">OUT OF CONTROL</span>'][st.hs || 0];
-      document.getElementById('wear').innerHTML = '<div class="wrow"><span>Handling</span>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><span>Tires</span><span style="color:' + ZONE[z] + '">' + tireWord(wear) + '</span></div>' +
+      var tt = me.res.totals, i0 = Math.min(st.s, tt.length - 1), i1 = Math.min(st.s + 1, tt.length - 1), crashedNow = st.done && me.res.status === 'crash';
+      var v = (st.done || crashedNow) ? 0 : Math.max(0, tt[i1] - tt[i0]), left = Math.max(0, report.T - st.tot), lapNow = Math.min(CFG.laps, 1 + Math.floor(Math.max(0, st.tot) / lapLen));
+      var gauge = gaugeHTML(kmh(v), gaugeMax(report.round), kmh(AB.vmaxOf(report.round)), st.hs || 0, crashedNow);
+      var dist = st.done ? (crashedNow ? 'Out of the race' : 'Finished!') : 'Lap ' + lapNow + '/' + CFG.laps + ' · ' + kmText(left) + ' to go';
+      document.getElementById('wear').innerHTML = '<div class="spd">' + gauge + '<div class="sdist">' + dist + '</div></div><div class="wrow"><span>Handling</span>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><span>Tires</span><span style="color:' + ZONE[z] + '">' + tireWord(wear) + '</span></div>' +
         '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div></div><div class="wlog">' +
         (shown.length ? shown.slice().reverse().map(function (q) { return '<div class="r-' + q.type + '"><span class="dim">' + stamp(me, q.x - 0.5) + '</span> ' + EV_TXT[q.type] + '</div>'; }).join('') : '<div class="dim">No trouble yet.</div>') + '</div>';
     }
@@ -772,12 +846,30 @@
   function stopRace() { if (raf) cancelAnimationFrame(raf); raf = null; showRace.skip = null; }
 
   // ---------- actions ----------
-  function startNew() { run = AB.newChampionship((Date.now() % 1000000007) | 0, lib); persist(); showShop(); window.scrollTo(0, 0); }
+  function startNew() { run = AB.newChampionship((Date.now() % 1000000007) | 0, lib); persist(); showPick(); window.scrollTo(0, 0); }
+  var PERK_ICON = { part: '🔧', cash: '💰', reroll: '🔁', sponsor: '📣' };
+  function showPick() {
+    var offers = AB.teamOffers(run, RACERS.length);
+    var h = '<div class="hdr sk"><span>Pick your team</span></div><p class="dim" style="margin:6px 0 10px">Choose who you race as. Each team brings one small head start.</p>';
+    offers.forEach(function (t, i) {
+      var r = RACERS[t.racer % RACERS.length];
+      h += '<button class="teamcard" data-act="pick" data-i="' + i + '" style="--tc:' + t.color + '"><img alt="" src="' + Portraits.racerURL(r, { team: t.color }) + '">' +
+        '<span class="tci"><span class="tcn">' + esc(t.name) + '</span><span class="tcr">Driver: ' + esc(r.name) + '</span><span class="tcp">' + PERK_ICON[t.perk.k] + ' ' + esc(AB.perkText(t.perk)) + '</span></span></button>';
+    });
+    $.innerHTML = h;
+    pickOffers = offers;
+  }
+  var pickOffers = null;
   var actions = {
+    pick: function (el) {
+      var t = pickOffers && pickOffers[+el.i];
+      if (!t || !AB.pickTeam(run, t)) return;
+      faceCache.run = null; persist(); showShop(esc(t.name) + ' are on the grid. ' + esc(AB.perkText(t.perk)) + '.'); window.scrollTo(0, 0);
+    },
     new: function () { if (readSave() && !window.confirm('Abandon your current championship and start a new one?')) return; stopRace(); startNew(); },
     resume: function () {
       if (!(run && run.phase === 'shop')) run = AB.restore(readSave() || '', lib);
-      if (run) showShop('Championship resumed.'); else { clearSave(); showStart(); }
+      if (run && !run.team) showPick(); else if (run) showShop('Championship resumed.'); else { clearSave(); showStart(); }
       window.scrollTo(0, 0);
     },
     home: function () { stopRace(); persist(); showStart(); },

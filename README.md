@@ -2,7 +2,13 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.15b)
+## Changes in this version (v0.16b)
+
+- **Team selection**: `AB.teamOffers(run, nRacers)` draws 3 cards from the seed (name, colour, racer index, perk); `AB.pickTeam(run, t)` applies the perk. Perks: free T1 part of a random archetype (core slots), +`CFG.teamCash` (10) credits, first reroll every round free (`run.freeRe`, reset in `startShop`), T1 Sponsor. `run.team` is saved. You drive the team's racer (rivals never get her); your jacket takes the team colour, your face has a green ring.
+- **Speedometer**: half-circle gauge in the race Your car block, km/h = 60·√(step speed) (≈160 in round 1, ≈950 in round 9), red zone from the round's vmax, needle jitters when shaky / out of control, ✕ on a crash. Lap and distance to go (1 unit = 40 m).
+- **Plain part info**: shop impact as chips (⏱ seconds, 🛞 wear at the flag or 🔥 overheats / no overheating, 💥 crash odds); `PLAIN` table gives every archetype a one-liner and stat arrows (⚡ power, 🏁 top speed, 🛞 tire life, 🎯 grip, 🛡 safety, 🎲 luck swing, 🔧 repairs, 📈 growth, 🔙 comeback); `AB.describe` moved behind a "details" tap.
+
+## Previous version (v0.15b)
 
 - **Archetypes** (8 new, 42 total): Diesel engine (`1.5·x^(e−0.3)`, load ×0.9 vs tires), Slipstream design (0.85× gain, +12% power × tier scale × standings `behind`), Run-flat tires (limit ×0.82, punctures keep 100%, spun-around becomes a pit stop), Slicks (limit ×0.95, +2-6% power, no checks at the 20/40 marks, later checks +10% chance and one step harsher mix, wet/ice grip penalty applies twice), Daredevil pilot (+4%×level power per trouble survived, max +20%, crashes ×1.1), Mechanic pilot (punctures keep +15-30%, pit stops +12-30%), Insurance (crash scores `CFG.insure.pts[tier]` and pays 6 cr × tier; `pointsFor(..., build)`), Grudge (3 cr × tier per rival that started above you and finished behind you). Payouts land at the next shop with the Bookie money. Archetype value check (same tier swapped into 120 library builds): all new ones within ±3% of their slot average after tuning.
 - **Marketing**: `mktBase` 3 (was 2), Sponsor 6 cr per tier (was 5), signing bonus 2/tier (was 1.5).
