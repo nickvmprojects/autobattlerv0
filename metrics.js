@@ -15,7 +15,7 @@ function championship(field, rng) {
     var al = cars.filter(function (f) { return f.alive; });
     var bh = AB.behindOf(al.map(function (f) { return { points: f.pts }; }));
     var res = AB.raceField(al.map(function (f) { return f.c.builds[r - 1]; }), AB.raceLen(r), rng, { vmax: AB.vmaxOf(r) }, bh.map(function (b) { return { behind: b, circuit: cal[r - 1] }; }));
-    al.forEach(function (f, k) { f.pts += AB.pointsFor(res.pos[k], al.length, r, res.results[k].status); f.last = res.pos[k]; });
+    al.forEach(function (f, k) { f.pts += AB.pointsFor(res.pos[k], al.length, r, res.results[k].status, f.c.builds[r - 1]); f.last = res.pos[k]; });
     if (CFG.eliminateAfter.indexOf(r) >= 0) { var w = al.slice().sort(function (a, b) { return a.pts - b.pts || b.last - a.last; })[0]; w.alive = false; w.el = r; }
     order.push(cars.slice().sort(function (a, b) { return b.pts - a.pts || b.el - a.el || a.last - b.last; }).map(function (f) { return f.i; }));
   }
@@ -49,7 +49,7 @@ function effective(list, slots) { // exp(Shannon entropy) of build signatures = 
   var top = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0];
   return { eff: Math.exp(H), top: top, topShare: cnt[top] / list.length };
 }
-var CORE = ['engine', 'design', 'tires'], POSS = 4 * 5 * 4; // archetypes incl. stock
+var CORE = ['engine', 'design', 'tires'], POSS = CORE.reduce(function (a, s) { return a * (AB.ARCH[s].length + 1); }, 1); // archetypes incl. stock
 var champE = effective(champBuilds, CORE), allE = effective(allBuilds, CORE);
 var dom = AB.SLOTS.map(function (s) {
   var c = {}; champBuilds.forEach(function (b) { c[b[s].a] = (c[b[s].a] || 0) + 1; });

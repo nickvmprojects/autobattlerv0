@@ -2,7 +2,16 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.14b)
+## Changes in this version (v0.15b)
+
+- **Archetypes** (8 new, 42 total): Diesel engine (`1.5·x^(e−0.3)`, load ×0.9 vs tires), Slipstream design (0.85× gain, +12% power × tier scale × standings `behind`), Run-flat tires (limit ×0.82, punctures keep 100%, spun-around becomes a pit stop), Slicks (limit ×0.95, +2-6% power, no checks at the 20/40 marks, later checks +10% chance and one step harsher mix, wet/ice grip penalty applies twice), Daredevil pilot (+4%×level power per trouble survived, max +20%, crashes ×1.1), Mechanic pilot (punctures keep +15-30%, pit stops +12-30%), Insurance (crash scores `CFG.insure.pts[tier]` and pays 6 cr × tier; `pointsFor(..., build)`), Grudge (3 cr × tier per rival that started above you and finished behind you). Payouts land at the next shop with the Bookie money. Archetype value check (same tier swapped into 120 library builds): all new ones within ±3% of their slot average after tuning.
+- **Marketing**: `mktBase` 3 (was 2), Sponsor 6 cr per tier (was 5), signing bonus 2/tier (was 1.5).
+- **Circuits**: effects about 1.5× stronger (docks grip 0.7 / spins ×1.75, furnace top 1.22 / wear 1.4, canyon top 0.78 / grip 0.85, graveyard crowd ×3, frost grip 0.6 / punctures ×0.35, summit power 0.85, smokestack pitKeep 0.45, sewer spread 1.9, palace grip 1.3 / wear 0.7). Crash per car per race by circuit: 10-17% (cap was 30%).
+- **Portraits in game**: `Portraits.RACERS` (22: two per style, S9 coyote + octopus `s9o`), `drawRacer(r, {mood, team, crop})` / `racerURL` (cached data URLs as `<img>`, so clip ids never collide and the tower stays cheap). Jackets take the team colour. Moods `sig` / `win` / `crash` as overlays per style (`FACE` anchors). Old 14-portrait kit removed from index.html.
+- **UI**: VS splash between shop and race (`showVS`, auto 2.8 s, tap to skip; race intro kept), podium on race results and on the final screen (`podiumHTML`), mood faces in result rows.
+- Measured (800 championships, full): expert 32% win / 67% podium, seasoned 18% / 46%, beginner 2% / 12%. Champion core variety 66 effective builds (was 42); top per slot: Endurance 31%, Lightweight 27%, Run-flat 29%, Drift kit 58%, Opportunist 36%, Pit crew 45%. Skip marketing: 10% / 37%.
+
+## Previous version (v0.14b)
 
 - **Shop part info**: pips replaced by an "ON YOUR CAR" line per offer: seconds per race (no-trouble middle run), tire wear at the flag (before → after, "overheat" past 100%) and crash odds (80 replays with shared dice), all on the next circuit. `AB.partImpact(build, offer, round, ctx)` / `AB.raceProfile`. Marketing offers show credits and rerolls instead. Own-car cards show the part description.
 - **Economy**: `CFG.tierPrices` 10/26/50/85 (was 10/22/38/55), new `CFG.mktPrice` 0.6 (marketing 40% cheaper). Variants simmed (300-400 careers each, two seeds): plain price rises made skipping marketing free or better; cheaper marketing is what makes it pay. Library builds at round 9: avg tier 2.4 (was 2.9), 51% of parts T3+, 70% of cars own a T4, nobody stuck at T1-T2.

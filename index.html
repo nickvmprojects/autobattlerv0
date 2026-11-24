@@ -116,7 +116,24 @@
   details.wn > summary { color:var(--acc); text-transform:uppercase; }
   select { font:inherit; color:var(--text); background:#1d2438; border:0; padding:4px 8px; font-size:20px; }
   .big-result { font-size:22px; font-style:italic; font-weight:700; text-transform:uppercase; }
-  .face { display:inline-block; border-radius:50%; overflow:hidden; flex-shrink:0; vertical-align:middle; font-weight:700; font-style:italic; }
+  .face { display:inline-block; border-radius:50%; overflow:hidden; flex-shrink:0; vertical-align:middle; font-weight:700; font-style:italic; object-fit:cover; }
+  .bigface { display:block; border-radius:10px; border:2px solid #ffffff22; }
+  .bigyou { display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:10px; background:#3ddc6f; color:#04140a; font-weight:800; font-style:italic; font-size:26px; } .bigyou span { font-size:34px; font-style:normal; }
+  .podium { display:flex; align-items:flex-end; justify-content:center; gap:8px; margin:10px 0 4px; }
+  .pod { display:flex; flex-direction:column; align-items:center; min-width:80px; } .pod .pn2 { font-weight:800; font-style:italic; font-size:14px; margin-top:4px; text-align:center; } .pod .pt2 { font-size:12px; color:var(--dim); text-align:center; max-width:120px; }
+  .pod .plinth { width:100%; margin-top:4px; background:linear-gradient(#2a3354,#151b2c); border-top:3px solid var(--acc); display:flex; align-items:flex-start; justify-content:center; font-size:22px; font-weight:800; font-style:italic; color:var(--acc); padding-top:2px; }
+  .pod.p1 .plinth { border-top-color:#ffd23f; color:#ffd23f; } .pod.you .pn2 { color:var(--good); }
+  .vs { position:fixed; inset:0; z-index:50; background:repeating-linear-gradient(115deg,#0a0d18 0 26px,#111830 26px 52px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:14px; animation:vsin .25s ease-out; }
+  .vs.out { opacity:0; transition:opacity .25s; }
+  @keyframes vsin { from { opacity:0; transform:scale(1.06); } to { opacity:1; transform:none; } }
+  .vtop { text-align:center; } .vr { color:var(--dim); font-weight:700; letter-spacing:2px; } .vc { font-size:30px; font-weight:800; font-style:italic; color:var(--c); text-transform:uppercase; line-height:1; } .vfx { font-size:14px; color:var(--text); margin-top:2px; }
+  .vmid { display:flex; align-items:center; gap:8px; } .vside { display:flex; flex-direction:column; align-items:center; text-align:center; max-width:140px; }
+  .vside.l { animation:vsl .35s ease-out; } .vside.r { animation:vsr .35s ease-out; }
+  @keyframes vsl { from { transform:translateX(-60px); opacity:0; } } @keyframes vsr { from { transform:translateX(60px); opacity:0; } }
+  .vvs { font-size:44px; font-weight:900; font-style:italic; color:var(--red); text-shadow:3px 3px 0 #000; }
+  .vn { font-weight:800; font-style:italic; margin-top:4px; } .vp { font-size:12px; color:var(--dim); }
+  .vtag { font-weight:800; font-style:italic; color:var(--acc); text-transform:uppercase; letter-spacing:1px; }
+  .vgrid { display:flex; gap:4px; flex-wrap:wrap; justify-content:center; } .vann { font-style:italic; text-align:center; max-width:340px; } .vskip { font-size:12px; color:var(--dim); }
   .rtop { position:sticky; top:0; z-index:6; background:var(--bg); padding-bottom:4px; margin:0 -2px; }
   .abar { display:flex; gap:8px; align-items:center; background:var(--row); border-top:3px solid var(--acc); padding:4px 8px; margin:4px 0; height:62px; overflow:hidden; }
   .abar .atext { flex-grow:1; min-width:0; }
@@ -139,8 +156,9 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.14b"></script>
-<script src="bots.js?v=0.14b"></script>
+<script src="engine.js?v=0.15b"></script>
+<script src="portraits.js?v=0.15b"></script>
+<script src="bots.js?v=0.15b"></script>
 <script>
 (function () {
   'use strict';
@@ -176,165 +194,32 @@
   }
   function tname(car) { return flagOf(car) + ' ' + car.name; }
   function teamColor(car) { return car.player ? '#3ddc6f' : AB.colorOf(car.id).c; }
-  // ---------- rival portraits: original anime racer girls, drawn as SVG ----------
-  // Each preset: art style (face/eye/line treatment), hair, eyes, expression, extras. Expressions are a separate field so a later version can swap them for reactions.
-  var PORTRAITS = [
-    { id: 'vera', style: '80s', hair: '#c04bd6', hair2: '#7a2a95', cut: 'volume', eye: '#2bb5a0', skin: '#f6d2b8', expr: 'smug', acc: ['earrings', 'shades_up'] },
-    { id: 'kaede', style: '90s', hair: '#e0352b', hair2: '#8f1d16', cut: 'spiky', eye: '#3a6bd6', skin: '#f3c7a5', expr: 'angry', acc: ['goggles'] },
-    { id: 'mio', style: '00s', hair: '#3d7ff0', hair2: '#1f4aa0', cut: 'long', eye: '#7a5cff', skin: '#fbe0cc', expr: 'happy', acc: ['headset', 'blush'] },
-    { id: 'suzu', style: 'shooter', hair: '#cfd6e6', hair2: '#8f98ad', cut: 'bob', eye: '#e0442a', skin: '#fde7d6', expr: 'crazy', acc: ['side_ribbon'] },
-    { id: 'pip', style: 'chibi', hair: '#ff8a1f', hair2: '#c45a00', cut: 'twintails', eye: '#2a2a2a', skin: '#fde2cc', expr: 'determined', acc: ['helmet', 'blush'] },
-    { id: 'mochi', style: 'plush', hair: '#7fe0c0', hair2: '#45a88a', cut: 'bob', eye: '#2d2a3a', skin: '#fff1e3', expr: 'bored', acc: ['blush'] },
-    { id: 'raven', style: 'gritty', hair: '#1d1b22', hair2: '#000000', cut: 'messy', eye: '#d6a21e', skin: '#d9ac8c', expr: 'gritty', acc: ['scar', 'bandage'] },
-    { id: 'hime', style: '90s', hair: '#15131c', hair2: '#3a2f55', cut: 'hime', eye: '#c0283c', skin: '#f6d6c2', expr: 'smug', acc: [] },
-    { id: 'momo', style: '00s', hair: '#ff6fae', hair2: '#c73d7c', cut: 'twintails', eye: '#29b0d6', skin: '#fde0cf', expr: 'crazy', acc: ['blush', 'fang'] },
-    { id: 'jade', style: '80s', hair: '#18b5b0', hair2: '#0c6e6b', cut: 'sidetail', eye: '#6b3fa0', skin: '#efc6a6', expr: 'determined', acc: ['headband'] },
-    { id: 'frost', style: 'gritty', hair: '#eef0f6', hair2: '#9aa3b8', cut: 'messy', eye: '#3fb4ff', skin: '#e6c4ab', expr: 'angry', acc: ['eyepatch'] },
-    { id: 'nemu', style: 'shooter', hair: '#55c46a', hair2: '#2f7d3e', cut: 'long', eye: '#e0a020', skin: '#fde7d6', expr: 'sleepy', acc: ['hairclip'] },
-    { id: 'bun', style: 'plush', hair: '#b08cff', hair2: '#7a5cc4', cut: 'twintails', eye: '#2d2a3a', skin: '#fff1e3', expr: 'happy', acc: ['blush'] },
-    { id: 'tess', style: 'chibi', hair: '#ffd23f', hair2: '#c49a00', cut: 'spiky', eye: '#d6283c', skin: '#f9d9bf', expr: 'smug', acc: ['cap'] }
-  ];
-  var LINE = { '80s': ['#5a2e2e', 0.9], '90s': ['#141018', 1.3], '00s': ['#2a1f2a', 1], shooter: ['#1b1622', 0.8], chibi: ['#2a1f2a', 1.4], plush: ['#00000000', 0], gritty: ['#0a0a0a', 1.9] };
-  function portrait(pr, team, expr) {
-    expr = expr || pr.expr;
-    var L = LINE[pr.style], ln = L[0], lw = L[1], st = lw ? ' stroke="' + ln + '" stroke-width="' + lw + '" stroke-linejoin="round"' : '';
-    var chibi = pr.style === 'chibi', plush = pr.style === 'plush', round = chibi || plush || pr.style === '00s' || pr.style === 'shooter';
-    var has = function (a) { return pr.acc.indexOf(a) >= 0; };
-    var cx = 32, ey = chibi ? 34 : plush ? 33 : 31, ex = chibi ? 6.5 : plush ? 6 : 6; // eye centre y and half spacing
-    var h = '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><defs><clipPath id="pc"><circle cx="32" cy="32" r="32"/></clipPath></defs><g clip-path="url(#pc)">';
-    h += '<rect width="64" height="64" fill="' + team + '"/><rect width="64" height="64" fill="#05070d" opacity="0.55"/>';
-    if (pr.style === 'gritty') for (var i = 0; i < 8; i++) h += '<path d="M' + (i * 9 - 10) + ',0 l20,64" stroke="#000" stroke-width="1.2" opacity="0.25"/>';
-    if (has('helmet')) h += '<circle cx="32" cy="27" r="22" fill="' + team + '"' + st + '/><rect x="10" y="22" width="44" height="6" fill="#05070d" opacity="0.6"/>';
-    // hair behind the head
-    var back = { long: 'M14,24 Q12,50 18,64 L46,64 Q52,50 50,24 Z', hime: 'M15,22 L14,64 L50,64 L49,22 Z', volume: 'M8,30 Q6,10 32,6 Q58,10 56,30 Q60,46 50,54 L14,54 Q4,46 8,30 Z',
-      sidetail: 'M44,22 Q58,30 54,52 Q50,60 46,56 Q52,40 42,28 Z', twintails: 'M12,22 Q2,34 6,52 Q9,58 13,54 Q10,40 18,28 Z M52,22 Q62,34 58,52 Q55,58 51,54 Q54,40 46,28 Z',
-      bob: 'M16,22 Q14,40 18,44 L46,44 Q50,40 48,22 Z', spiky: '', messy: 'M17,24 Q15,38 19,42 L45,42 Q49,38 47,24 Z' }[pr.cut];
-    if (chibi) back = back && back.replace(/(\d+),(\d+)/g, function (m, a, b) { return Math.round(32 + (a - 32) * 1.12) + ',' + (+b + 2); });
-    if (back) h += '<path d="' + back + '" fill="' + pr.hair2 + '"' + st + '/>';
-    // shoulders in a racing suit
-    var sy = chibi ? 54 : 50;
-    h += '<path d="M6,64 Q10,' + (sy + 1) + ' 22,' + sy + ' L42,' + sy + ' Q54,' + (sy + 1) + ' 58,64 Z" fill="' + team + '"' + st + '/>';
-    h += '<path d="M24,' + sy + ' L32,' + (sy + 8) + ' L40,' + sy + '" fill="none" stroke="#fff" stroke-width="2"/>';
-    h += '<rect x="28" y="' + (sy - 9) + '" width="8" height="10" fill="' + pr.skin + '"' + st + '/>';
-    // face
-    if (chibi) h += '<ellipse cx="32" cy="32" rx="16" ry="15" fill="' + pr.skin + '"' + st + '/>';
-    else if (plush) h += '<ellipse cx="32" cy="32" rx="15" ry="13.5" fill="' + pr.skin + '"/>';
-    else if (round) h += '<path d="M19,27 Q19,44 32,46 Q45,44 45,27 Q45,15 32,15 Q19,15 19,27 Z" fill="' + pr.skin + '"' + st + '/>';
-    else h += '<path d="M20,26 Q20,40 32,48 Q44,40 44,26 Q44,14 32,14 Q20,14 20,26 Z" fill="' + pr.skin + '"' + st + '/>';
-    if (pr.style === '90s' || pr.style === '00s' || pr.style === 'gritty') h += '<path d="M20,' + (pr.cut === 'hime' ? 25 : 27) + ' Q32,' + (pr.cut === 'hime' ? 27.5 : 31) + ' 44,' + (pr.cut === 'hime' ? 25 : 27) + ' L44,23 L20,23 Z" fill="#000" opacity="0.1"/>';
-    if (pr.style === 'gritty') h += '<path d="M24,40 l3,2 M37,42 l3,-2 M22,34 l2,1" stroke="#000" stroke-width="0.8" opacity="0.4"/>';
-    // blush
-    if (has('blush')) h += '<ellipse cx="' + (cx - ex - 3) + '" cy="' + (ey + 6) + '" rx="3" ry="1.6" fill="#ff7aa8" opacity="0.55"/><ellipse cx="' + (cx + ex + 3) + '" cy="' + (ey + 6) + '" rx="3" ry="1.6" fill="#ff7aa8" opacity="0.55"/>';
-    // eyes
-    h += eyes(pr, expr, cx, ey, ex, ln, lw);
-    // brows
-    var bw = pr.style === 'gritty' ? 1.8 : 1.2, by = ey - (chibi ? 7 : 6.5), bc = pr.style === 'plush' ? pr.hair2 : ln === '#00000000' ? pr.hair2 : pr.hair2;
-    var brow = { smug: [[-1, 0.5], [1, -1.5]], angry: [[-1.5, 2.5], [1.5, 2.5]], crazy: [[-1, -2], [1, -2]], happy: [[0, -1], [0, -1]], determined: [[-1, 1.5], [1, 1.5]], gritty: [[-1, 2], [1, 2]], bored: [[0, 0], [0, 0]], sleepy: [[0, 0.5], [0, 0.5]] }[expr];
-    [[-1, brow[0]], [1, brow[1]]].forEach(function (b) {
-      var s = b[0], tilt = b[1][1], x0 = cx + s * (ex - 3), x1 = cx + s * (ex + 3.5);
-      h += '<path d="M' + x0 + ',' + (by + tilt) + ' L' + x1 + ',' + (by - (expr === 'angry' || expr === 'determined' || expr === 'gritty' ? 0 : tilt * 0.3)) + '" stroke="' + bc + '" stroke-width="' + bw + '" stroke-linecap="round"/>';
-    });
-    // mouth
-    var my = chibi ? ey + 8 : plush ? ey + 7 : ey + 9;
-    var mouth = {
-      smug: '<path d="M29,' + my + ' Q33,' + (my + 1.5) + ' 36,' + (my - 1.5) + '" fill="none" stroke="' + (ln === '#00000000' ? '#6b3a3a' : ln) + '" stroke-width="1" stroke-linecap="round"/>',
-      angry: '<rect x="28.5" y="' + (my - 1.5) + '" width="7" height="3.2" rx="1" fill="#fff" stroke="#3a1414" stroke-width="0.9"/><path d="M29,' + my + ' H35" stroke="#3a1414" stroke-width="0.5"/>',
-      crazy: '<path d="M26,' + (my - 2) + ' Q32,' + (my + 6) + ' 38,' + (my - 2) + ' Z" fill="#5a1414" stroke="#3a1414" stroke-width="0.8"/><path d="M26.5,' + (my - 1.6) + ' L37.5,' + (my - 1.6) + '" stroke="#fff" stroke-width="1.4"/>',
-      happy: '<path d="M28.5,' + (my - 1) + ' Q32,' + (my + 3.5) + ' 35.5,' + (my - 1) + ' Z" fill="#c2405a"/>',
-      determined: '<path d="M29.5,' + my + ' H34.5" stroke="#5a2e2e" stroke-width="1.2" stroke-linecap="round"/>',
-      gritty: '<path d="M28.5,' + (my + 1) + ' Q32,' + (my - 1) + ' 35.5,' + (my + 1) + '" fill="none" stroke="#2a1010" stroke-width="1.3"/>',
-      bored: '<path d="M30,' + my + ' H34" stroke="#6b3a3a" stroke-width="1" stroke-linecap="round"/>',
-      sleepy: '<ellipse cx="32" cy="' + my + '" rx="1.4" ry="1" fill="#6b3a3a"/>'
-    }[expr];
-    h += mouth;
-    if (has('fang')) h += '<path d="M33.5,' + (my - 1.2) + ' l1,2 l1,-2 z" fill="#fff"/>';
-    // front hair
-    var front = {
-      volume: 'M10,30 Q8,8 32,7 Q56,8 54,30 Q50,20 44,22 Q42,14 34,18 Q30,12 24,19 Q16,16 14,26 Z',
-      spiky: 'M14,30 L12,16 L19,19 L18,8 L26,15 L30,5 L35,14 L42,6 L43,17 L51,12 L48,22 L53,28 Q46,20 40,21 L36,26 L33,20 L28,26 L25,20 L19,24 Z',
-      long: 'M17,34 Q14,12 32,11 Q50,12 47,34 Q45,22 40,21 L37,27 L33,20 L28,27 L25,21 Q20,24 17,34 Z',
-      hime: 'M17,40 L17,18 Q18,10 32,10 Q46,10 47,18 L47,40 L44,40 L44,24 L20,24 L20,40 Z',
-      bob: 'M16,36 Q13,12 32,11 Q51,12 48,36 Q46,26 44,23 Q38,26 34,21 Q28,26 22,22 Q19,27 16,36 Z',
-      twintails: 'M17,32 Q14,12 32,11 Q50,12 47,32 Q44,22 38,23 L34,19 L30,24 L25,20 Q20,24 17,32 Z',
-      sidetail: 'M18,34 Q14,12 32,11 Q50,12 46,30 Q42,20 34,22 Q26,20 22,26 Z',
-      messy: 'M15,32 Q12,14 30,10 Q48,8 50,28 L45,22 L44,28 L39,20 L36,26 L32,19 L28,26 L25,20 L22,27 L19,22 Z'
-    }[pr.cut];
-    if (chibi) front = front.replace(/(\d+),(\d+)/g, function (m, a, b) { return Math.round(32 + (a - 32) * 1.12) + ',' + Math.round(32 + (b - 32) * 1.08); });
-    h += '<path d="' + front + '" fill="' + pr.hair + '"' + st + '/>';
-    if (pr.style !== 'plush' && pr.style !== 'shooter') h += '<path d="M24,14 Q30,12 34,14" stroke="#fff" stroke-width="1.4" opacity="0.5" fill="none"/>';
-    if (pr.style === '00s' || pr.style === '90s') h += '<path d="M31,10 Q36,2 40,6 Q35,6 33,11" fill="' + pr.hair + '"' + st + '/>'; // ahoge
-    // extras
-    if (has('goggles')) h += '<rect x="15" y="15" width="34" height="3" fill="#222"/><circle cx="25" cy="16.5" r="4.5" fill="#7fd3ff" stroke="#222" stroke-width="1.6"/><circle cx="39" cy="16.5" r="4.5" fill="#7fd3ff" stroke="#222" stroke-width="1.6"/>';
-    if (has('shades_up')) h += '<path d="M19,17 H45" stroke="#111" stroke-width="1.2"/><rect x="20" y="14.5" width="10" height="4.5" rx="2" fill="#111"/><rect x="34" y="14.5" width="10" height="4.5" rx="2" fill="#111"/>';
-    if (has('headset')) h += '<path d="M15,30 Q14,8 32,7 Q50,8 49,30" fill="none" stroke="#1b1f2b" stroke-width="2.4"/><rect x="12" y="27" width="5" height="9" rx="2" fill="#1b1f2b"/><path d="M15,35 Q17,44 26,44" fill="none" stroke="#1b1f2b" stroke-width="1.4"/><circle cx="26.5" cy="44" r="1.6" fill="#ff9e1b"/>';
-    if (has('earrings')) h += '<circle cx="18" cy="38" r="2" fill="#ffd23f" stroke="#a07a00" stroke-width="0.6"/><circle cx="46" cy="38" r="2" fill="#ffd23f" stroke="#a07a00" stroke-width="0.6"/>';
-    if (has('headband')) h += '<path d="M16,20 Q32,13 48,20" fill="none" stroke="#fff" stroke-width="3"/><path d="M16,20 Q32,13 48,20" fill="none" stroke="#e8203a" stroke-width="1.2"/>';
-    if (has('side_ribbon')) h += '<path d="M46,18 l7,-4 l-1,8 z M46,18 l-1,-8 l7,4 z" fill="#2fd1c0" stroke="#1b1622" stroke-width="0.8"/><circle cx="46" cy="18" r="1.6" fill="#1b9e90"/>';
-    if (has('hairclip')) h += '<rect x="40" y="17" width="7" height="2.4" rx="1" fill="#ffd23f" transform="rotate(-25 43 18)"/>';
-    if (has('cap')) h += '<path d="M12,22 Q14,4 34,5 Q52,6 52,22 Z" fill="' + team + '"' + st + '/><path d="M8,22 Q30,16 56,22 Q50,26 30,24 Q14,25 8,22 Z" fill="#05070d"' + st + '/>';
-    if (has('scar')) h += '<path d="M38,24 L42,34" stroke="#a5504a" stroke-width="1.2"/><path d="M38.5,27 l2,-0.6 M40,30.5 l2,-0.6" stroke="#a5504a" stroke-width="0.8"/>';
-    if (has('bandage')) h += '<rect x="22" y="37" width="7" height="3.5" rx="1" fill="#f4e4c8" stroke="#8a7350" stroke-width="0.6" transform="rotate(-15 25 38)"/>';
-    if (has('eyepatch')) h += '<path d="M18,20 L46,32" stroke="#111" stroke-width="1.2"/><ellipse cx="' + (cx + ex) + '" cy="' + ey + '" rx="4.6" ry="4" fill="#111"/>';
-    if (expr === 'sleepy') h += '<text x="47" y="20" font-size="8" font-weight="700" fill="#fff" font-family="sans-serif">z</text>';
-    if (expr === 'crazy') h += '<path d="M49,24 q2,3 0,5 q-2,-2 0,-5z" fill="#7fd3ff"/>';
-    return h + '</g></svg>';
-  }
-  function eyes(pr, expr, cx, ey, ex, ln, lw) {
-    var h = '', S = pr.style;
-    [-1, 1].forEach(function (s) {
-      var x = cx + s * ex;
-      if (pr.acc.indexOf('eyepatch') >= 0 && s === 1) return;
-      if (expr === 'happy') { h += '<path d="M' + (x - 3) + ',' + (ey + 1) + ' Q' + x + ',' + (ey - 3) + ' ' + (x + 3) + ',' + (ey + 1) + '" fill="none" stroke="' + (S === 'plush' ? '#2d2a3a' : ln) + '" stroke-width="1.6" stroke-linecap="round"/>'; return; }
-      if (expr === 'sleepy') { h += '<path d="M' + (x - 3) + ',' + ey + ' Q' + x + ',' + (ey + 2) + ' ' + (x + 3) + ',' + ey + '" fill="none" stroke="' + (S === 'plush' ? '#2d2a3a' : ln) + '" stroke-width="1.4" stroke-linecap="round"/>'; return; }
-      if (S === 'plush') { // stitched felt eyes
-        h += '<ellipse cx="' + x + '" cy="' + ey + '" rx="2.6" ry="3.2" fill="' + pr.eye + '"/><circle cx="' + (x + 0.8) + '" cy="' + (ey - 1) + '" r="0.9" fill="#fff"/>';
-        if (expr === 'bored') h += '<rect x="' + (x - 3) + '" y="' + (ey - 3.6) + '" width="6" height="3" fill="' + pr.skin + '"/><path d="M' + (x - 3) + ',' + (ey - 0.6) + ' H' + (x + 3) + '" stroke="#2d2a3a" stroke-width="0.9"/>';
-        return;
-      }
-      var w = { '80s': 3, '90s': 3.2, '00s': 3.6, shooter: 3.3, chibi: 3.4, gritty: 3.2 }[S], hh = { '80s': 3, '90s': 4.2, '00s': 4.6, shooter: 3.8, chibi: 4.4, gritty: 2.4 }[S];
-      if (expr === 'crazy') hh += 1, w += 0.4;
-      // white, iris, pupil, highlights
-      h += '<ellipse cx="' + x + '" cy="' + ey + '" rx="' + w + '" ry="' + hh + '" fill="#fff"' + (lw ? ' stroke="' + ln + '" stroke-width="' + (lw * 0.6) + '"' : '') + '/>';
-      var ir = S === 'chibi' ? w * 0.85 : w * 0.72, pr2 = expr === 'crazy' ? 0.8 : ir * 0.45;
-      if (S === 'chibi') h += '<ellipse cx="' + x + '" cy="' + (ey + 0.3) + '" rx="' + ir + '" ry="' + (hh * 0.85) + '" fill="#1d1622"/>';
-      else {
-        h += '<ellipse cx="' + x + '" cy="' + (ey + 0.4) + '" rx="' + ir + '" ry="' + (hh * 0.78) + '" fill="' + pr.eye + '"/>';
-        if (S === '00s') h += '<ellipse cx="' + x + '" cy="' + (ey + 1.4) + '" rx="' + (ir * 0.8) + '" ry="' + (hh * 0.4) + '" fill="#fff" opacity="0.25"/>';
-        h += '<circle cx="' + x + '" cy="' + (ey + 0.4) + '" r="' + pr2 + '" fill="#120d16"/>';
-      }
-      if (expr === 'crazy' && S !== 'chibi') h += '<circle cx="' + x + '" cy="' + (ey + 0.4) + '" r="' + (ir * 0.75) + '" fill="none" stroke="#120d16" stroke-width="0.5"/>';
-      h += '<circle cx="' + (x + w * 0.35) + '" cy="' + (ey - hh * 0.4) + '" r="' + (S === '80s' ? 1.3 : 1) + '" fill="#fff"/>';
-      if (S === '00s' || S === 'chibi') h += '<circle cx="' + (x - w * 0.35) + '" cy="' + (ey + hh * 0.35) + '" r="0.6" fill="#fff"/>';
-      // lids by expression and style
-      var lidCol = pr.skin, top = ey - hh - 0.5;
-      var cut = { smug: 0.45, bored: 0.5, gritty: 0.35, angry: 0.25, determined: 0.2, crazy: 0 }[expr] || 0;
-      if (cut) {
-        var tilt = expr === 'angry' || expr === 'determined' ? s * -1.2 : 0;
-        h += '<path d="M' + (x - w - 1) + ',' + (top - 1) + ' L' + (x + w + 1) + ',' + (top - 1) + ' L' + (x + w + 1) + ',' + (top + hh * 2 * cut - tilt) + ' L' + (x - w - 1) + ',' + (top + hh * 2 * cut + tilt) + ' Z" fill="' + lidCol + '"/>';
-        h += '<path d="M' + (x - w - 0.5) + ',' + (top + hh * 2 * cut + tilt) + ' L' + (x + w + 0.5) + ',' + (top + hh * 2 * cut - tilt) + '" stroke="' + ln + '" stroke-width="' + Math.max(1, lw) + '"/>';
-      } else {
-        h += '<path d="M' + (x - w - 0.6) + ',' + (ey - hh * 0.6) + ' Q' + x + ',' + (top - 0.8) + ' ' + (x + w + 0.6) + ',' + (ey - hh * 0.6) + '" fill="none" stroke="' + ln + '" stroke-width="' + Math.max(1.1, lw * 1.2) + '" stroke-linecap="round"/>';
-      }
-      if (S === '80s' || S === '90s') h += '<path d="M' + (x + s * (w + 0.3)) + ',' + (ey - hh * 0.5) + ' l' + (s * 1.8) + ',-1.4" stroke="' + ln + '" stroke-width="0.9"/>';
-    });
-    return h;
-  }
   function nameHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   var faceCache = { run: null, map: null };
+  var RACERS = Portraits.RACERS;
   function faceOf(car) { // each rival team keeps one racer (picked from its name), no two in the same field
     if (car.player) return null;
     if (faceCache.run !== run) {
       var taken = {}, map = {};
-      run.field.forEach(function (c) { if (c.player) return; var i = (nameHash(c.name) >>> 3) % PORTRAITS.length; while (taken[i]) i = (i + 1) % PORTRAITS.length; taken[i] = 1; map[c.id] = PORTRAITS[i]; });
+      run.field.forEach(function (c) { if (c.player) return; var i = (nameHash(c.name) >>> 3) % RACERS.length; while (taken[i]) i = (i + 1) % RACERS.length; taken[i] = 1; map[c.id] = RACERS[i]; });
       faceCache = { run: run, map: map };
     }
     return faceCache.map[car.id];
   }
-  function faceHTML(car, px) {
-    var pr = faceOf(car);
-    if (!pr) return '<span class="face" style="width:' + px + 'px;height:' + px + 'px;background:#3ddc6f;display:inline-flex;align-items:center;justify-content:center;color:#04140a;font-size:' + Math.round(px * 0.45) + 'px">YOU</span>';
-    return '<span class="face" style="width:' + px + 'px;height:' + px + 'px">' + portrait(pr, AB.colorOf(car.id).c) + '</span>';
+  function youBadge(px) { return '<span class="face" style="width:' + px + 'px;height:' + px + 'px;background:#3ddc6f;display:inline-flex;align-items:center;justify-content:center;color:#04140a;font-size:' + Math.round(px * 0.42) + 'px">YOU</span>'; }
+  // Small round face crop (tower, standings, announcer). mood: 'sig' | 'win' | 'crash'.
+  function faceHTML(car, px, mood) {
+    var r = faceOf(car);
+    if (!r) return youBadge(px);
+    return '<img class="face" alt="" style="width:' + px + 'px;height:' + px + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: AB.colorOf(car.id).c, crop: true }) + '">';
   }
+  // Full head-and-shoulders portrait (podium, VS splash).
+  function bigFace(car, w, mood) {
+    var r = faceOf(car);
+    if (!r) return '<div class="bigyou" style="width:' + w + 'px;height:' + Math.round(w * 1.25) + 'px"><span>' + esc(myFlag()) + '</span>YOU</div>';
+    return '<img class="bigface" alt="" style="width:' + w + 'px" src="' + Portraits.racerURL(r, { mood: mood || 'sig', team: AB.colorOf(car.id).c }) + '">';
+  }
+  function racerName(car) { var r = faceOf(car); return r ? r.name : 'You'; }
 
   // ---------- circuits (v0.11: one house circuit; later versions draw several) ----------
   function circuitFor(run, round) { return AB.circuitOf(run, round); }
@@ -677,14 +562,23 @@
     if (me && me.res.status === 'fin' && me !== fin[0]) say(me.res.x, 'you', me, null, me.pos, true);
     return calls.sort(function (a, b) { return a.t - b.t; });
   }
+  function podiumHTML(rows) {
+    var top = rows.filter(function (r) { return r.pos <= 3; }).sort(function (a, b) { return a.pos - b.pos; });
+    var slot = function (r, w, hgt) {
+      if (!r) return '<div class="pod"></div>';
+      var mood = r.res.status === 'crash' ? 'crash' : 'win';
+      return '<div class="pod p' + r.pos + (r.car.player ? ' you' : '') + '">' + bigFace(r.car, w, mood) + '<div class="pn2">' + esc(racerName(r.car)) + '</div><div class="pt2">' + esc(tname(r.car)) + '</div><div class="plinth" style="height:' + hgt + 'px">' + r.pos + '</div></div>';
+    };
+    return '<div class="podium">' + slot(top[1], 92, 46) + slot(top[0], 120, 70) + slot(top[2], 80, 30) + '</div>';
+  }
   function resultsHTML(rep) {
     var rows = rep.rows.slice().sort(function (a, b) { return a.pos - b.pos; });
     var best = rows[0].res.status === 'fin' ? rows[0].res.x : null, lapLen = rep.T / CFG.laps;
-    var h = '<h2>Result · tap a team to see its car</h2>';
+    var h = podiumHTML(rows) + '<h2>Result · tap a team to see its car</h2>';
     rows.forEach(function (r) {
       var res = r.res, txt = res.status === 'fin' ? (r.pos === 1 ? AB.fmtTime(res.x) : '+' + ((res.x - best) * CFG.secPerStep).toFixed(1) + 's') : res.status === 'crash' ? 'DNF L' + Math.min(CFG.laps, 1 + Math.floor(Math.max(0, res.total) / lapLen)) : 'DNF';
       var evs = res.events.map(function (q) { return '<span class="r-' + q.type + '">' + EV_SHORT[q.type] + '</span>'; });
-      h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm" style="display:flex;align-items:center;gap:6px">' + faceHTML(r.car, 34) + '<span>' + esc(tname(r.car)) + '</span></span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
+      h += '<details class="team' + (r.car.player ? ' you' : '') + '"><summary><span class="pos">' + r.pos + '</span><span class="nm" style="display:flex;align-items:center;gap:6px">' + faceHTML(r.car, 40, r.res.status === 'crash' ? 'crash' : r.pos <= 3 ? 'win' : 'sig') + '<span>' + esc(tname(r.car)) + '</span></span><span>' + txt + '</span><span class="pts">+' + r.pts + '</span></summary>' +
         '<p class="dim">Pilot rolled ' + Math.round(res.roll * 100) + '%.' + (res.shaky + res.wild ? ' Shaky for ' + (res.shaky + res.wild) + ' step' + (res.shaky + res.wild > 1 ? 's' : '') + (res.wild ? ' (' + res.wild + ' out of control)' : '') + '.' : '') + ' Trouble: ' + (evs.length ? evs.join(' · ') : 'none') + '.</p>';
       AB.SLOTS.forEach(function (s) { h += partLine(r.build[s]); });
       h += '</details>';
@@ -704,6 +598,22 @@
     else if (id === 'smokestack') { for (i = 0; i < 3; i++) { var k = (t * 0.4 + i / 3) % 1; ctx.fillStyle = 'rgba(160,160,160,' + (0.25 * (1 - k)) + ')'; ctx.beginPath(); ctx.arc([46, 76, 306][i] + k * 20, 150 - k * 120, 6 + k * 16, 0, 7); ctx.fill(); } }
     else if (id === 'palace') { ctx.fillStyle = 'rgba(255,214,240,.8)'; for (i = 0; i < 8; i++) { var p = (t * 0.7 + i / 8) % 1, a = Math.sin(p * Math.PI); ctx.globalAlpha = a; ctx.fillRect((i * 67) % W, (i * 31) % H, 2, 2); } ctx.globalAlpha = 1; }
     else if (id === 'canyon') { ctx.fillStyle = 'rgba(255,170,120,.25)'; for (i = 0; i < 18; i++) { x = (i * 23 + t * 40) % W; y = (i * 47 + Math.sin(t * 2 + i) * 6) % H; ctx.fillRect(x, y, 2, 1); } }
+  }
+  // VS splash between the shop and the race: you against the team just ahead of you (or the runner-up if you lead). Tap to skip.
+  var VS_LINES = ['Engines hot, mercy cold.', 'One of you goes home sad.', 'Grudges at two hundred an hour.', 'Somebody call the insurance guy.', 'Paint will be traded.', 'No brakes, no regrets.'];
+  function showVS(before, target, mi, circ, rnd, done) {
+    var me = before[mi], fin = false, el = document.createElement('div');
+    var lead = mi === 0, ann = ANNOUNCERS[circ.announcer || 'guy'];
+    el.className = 'vs'; el.style.setProperty('--c', circ.accent || '#ff9e1b');
+    el.innerHTML = '<div class="vtop"><div class="vr">ROUND ' + rnd + '/' + CFG.rounds + '</div><div class="vc">' + esc(circ.name) + '</div><div class="vfx">' + circ.text.map(esc).join(' · ') + '</div></div>' +
+      '<div class="vmid"><div class="vside l">' + bigFace(me, 120) + '<div class="vn">YOU</div><div class="vp">P' + (mi + 1) + ' · ' + me.points + ' pts</div></div><div class="vvs">VS</div>' +
+      '<div class="vside r">' + (target ? bigFace(target, 130) + '<div class="vn">' + esc(racerName(target)) + '</div><div class="vp">' + esc(tname(target)) + ' · P' + (before.indexOf(target) + 1) + ' · ' + target.points + ' pts</div>' : '') + '</div></div>' +
+      '<div class="vtag">' + (lead ? 'You lead. She wants it back.' : 'Your target this round') + '</div>' +
+      '<div class="vgrid">' + before.map(function (c) { return faceHTML(c, 30); }).join('') + '</div>' +
+      '<div class="vann">' + esc(ann ? ann.name : '') + ': “' + esc(VS_LINES[(rnd + mi) % VS_LINES.length]) + '”</div><div class="vskip">tap to skip</div>';
+    document.body.appendChild(el);
+    function go() { if (fin) return; fin = true; el.classList.add('out'); setTimeout(function () { el.remove(); }, 250); done(); }
+    el.addEventListener('click', go); setTimeout(go, 2800);
   }
   function showRace(rep) {
     var rows = rep.rows, sch = schedule(rows, rep.T), me = rows.filter(function (r) { return r.car.player; })[0];
@@ -853,7 +763,8 @@
     h += '<p class="big-result">' + (run.phase === 'dead' ? 'Cut after round ' + run.history.length + ' with ' + me.points + ' points.' : 'Final place: ' + run.finalRank + ' of ' + CFG.fieldSize + ' with ' + me.points + ' points.') + '</p>';
     h += '<h2>Your races</h2><table><tr><th>Round</th><th>Place</th><th class="n">Pts</th></tr>';
     run.history.forEach(function (r) { h += '<tr><td>' + r.round + '</td><td>' + r.pos + (r.status === 'crash' ? ' (crash)' : '') + '</td><td class="n">' + r.pts + '</td></tr>'; });
-    h += '</table><h2>Final standings</h2>' + standingsTable() + '<h2>Your final car</h2>';
+    var fst = AB.standings(run).slice(0, 3).map(function (c, i) { return { pos: i + 1, car: c, res: { status: 'fin' } }; });
+    h += '</table><h2>Final standings</h2>' + podiumHTML(fst) + standingsTable() + '<h2>Your final car</h2>';
     AB.SLOTS.forEach(function (s) { h += slotCard(run.build[s], false); });
     h += '<button class="big" data-act="new">New championship</button><button data-act="home" style="width:100%">Stats</button>';
     $.innerHTML = h;
@@ -882,7 +793,12 @@
     },
     reroll: function () { if (AB.reroll(run)) { persist(); showShop('Offers rerolled.'); } },
     lock: function () { AB.setLock(run, !run.locked); persist(); showShop(run.locked ? 'Shop locked: these offers will be waiting next round.' : 'Shop unlocked.'); },
-    race: function () { report = AB.race(run); showRace(report); window.scrollTo(0, 0); },
+    race: function () {
+      var before = AB.standings(run).filter(function (c) { return c.alive; }), mi = before.findIndex(function (c) { return c.player; });
+      var target = mi > 0 ? before[mi - 1] : before[1], circ = circuitFor(run, run.round), rnd = run.round;
+      report = AB.race(run);
+      showVS(before, target, mi, circ, rnd, function () { showRace(report); window.scrollTo(0, 0); });
+    },
     skip: function () { if (showRace.skip) showRace.skip(); },
     after: function () {
       var s = loadStats(); s.raceN++; s.placeSum += report.playerPos; saveStats(s);
