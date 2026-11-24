@@ -2,7 +2,14 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.13)
+## Changes in this version (v0.14b)
+
+- **Shop part info**: pips replaced by an "ON YOUR CAR" line per offer: seconds per race (no-trouble middle run), tire wear at the flag (before → after, "overheat" past 100%) and crash odds (80 replays with shared dice), all on the next circuit. `AB.partImpact(build, offer, round, ctx)` / `AB.raceProfile`. Marketing offers show credits and rerolls instead. Own-car cards show the part description.
+- **Economy**: `CFG.tierPrices` 10/26/50/85 (was 10/22/38/55), new `CFG.mktPrice` 0.6 (marketing 40% cheaper). Variants simmed (300-400 careers each, two seeds): plain price rises made skipping marketing free or better; cheaper marketing is what makes it pay. Library builds at round 9: avg tier 2.4 (was 2.9), 51% of parts T3+, 70% of cars own a T4, nobody stuck at T1-T2.
+- Measured (1000 championships, full): expert 28% win / 59% podium, seasoned 16% / 40%, beginner 1% / 9%. Skip marketing: 10% / 40% (was free). Champion variety 53%, decided by round 3: 23%. Drift kit still 61% of champions.
+- **Portrait lab** (`portraits.html`, `portraits.js`): one original racer in 11 styles (S1 80s cel, S2 90s cel, S3 2000s digital, S4 2010s soft, S5 doujin smug, S6 fumo plush, S7 gritty, S8 film realism, S9 pixel furry pilot, S10 Asano close-up, S11 flat TV comedy) at 240x300, for rating. `Portraits.draw(id)`; pixel styles go through `Portraits.pixelate(svg, size, cb)` (canvas, 16 colours). The in-game portraits are unchanged until the styles are picked.
+
+## Previous version (v0.13)
 
 - Race screen: sticky top (header, one-line announcer bar, circuit, effect chips), then titled blocks: Your car, Live racer view, Timing tower (top 5 + you, Show all). Speed 1x/2x.
 - Announcer queue: each line holds 2.2 s; calls have priority (must-hear: intro, start, lead, crash, spin, last lap, win, your own events; about you; small talk) and expire after 5 / 2.5 / 1.5 race steps. About 7-8 of 20-30 calls get read per race; the full list stays after the race.
