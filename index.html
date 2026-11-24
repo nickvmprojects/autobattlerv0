@@ -56,7 +56,7 @@
   .imp { display:flex; flex-wrap:wrap; gap:4px; align-items:center; font-size:14px; margin:6px 0 2px; } .imp .ic { background:#ffffff10; border-radius:6px; padding:1px 6px; font-weight:700; } .imp .ic.n { color:var(--dim); font-weight:600; }
   .pd .scs { white-space:nowrap; } .pd .sc { display:inline-block; font-size:12px; font-weight:700; background:#ffffff10; border-radius:5px; padding:0 4px; margin-right:3px; } .pd .sc.up { color:var(--good); } .pd .sc.dn { color:var(--bad); }
   .det { background:none; border:none; color:var(--acc); font-size:12px; padding:0 2px; text-decoration:underline; min-height:0; } .dx { display:none; font-size:12px; color:var(--dim); margin-top:2px; } .dx.open { display:block; }
-  .spd { display:flex; flex-direction:column; align-items:center; } .gauge { width:170px; height:auto; display:block; } .sdist { font-weight:700; font-style:italic; font-size:14px; margin:2px 0 6px; }
+  .spd { display:flex; flex-direction:column; align-items:center; } .gauge { width:170px; height:auto; display:block; } .spdrow { display:flex; align-items:center; justify-content:center; gap:10px; } .rpos { display:flex; flex-direction:column; align-items:center; min-width:74px; line-height:1; } .rpos .pn { font-size:46px; font-weight:800; font-style:italic; color:#fff; } .rpos .pn small { font-size:16px; color:var(--dim); font-weight:700; } .rpos.p1 .pn { color:#ffd23f; } .rpos.p2 .pn { color:#d6dbe6; } .rpos.p3 .pn { color:#e0904a; } .rpos.out .pn { color:var(--bad); font-size:34px; } .rpos .pd2 { height:18px; font-size:16px; font-weight:800; margin-top:2px; } .rpos .pd2.up { color:var(--good); } .rpos .pd2.dn { color:var(--bad); } .sdist { font-weight:700; font-style:italic; font-size:14px; margin:2px 0 6px; }
   .meface { box-shadow:0 0 0 2px #3ddc6f; }
   .teamcard { display:flex; gap:10px; align-items:center; width:100%; text-align:left; background:#151b2b; border:2px solid var(--tc); border-radius:12px; padding:8px; margin-bottom:10px; color:var(--text); }
   .teamcard img { width:92px; border-radius:8px; flex-shrink:0; } .tci { display:flex; flex-direction:column; gap:3px; } .tcn { font-size:22px; font-weight:800; font-style:italic; color:var(--tc); text-transform:uppercase; line-height:1; } .tcr { font-size:14px; color:var(--dim); } .tcp { font-size:15px; font-weight:700; } .imp .ih { font-weight:800; letter-spacing:.5px; color:var(--acc); margin-right:2px; } .imp .p { color:var(--good); font-weight:700; } .imp .m { color:var(--bad); font-weight:700; }
@@ -162,9 +162,9 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.16b"></script>
-<script src="portraits.js?v=0.16b"></script>
-<script src="bots.js?v=0.16b"></script>
+<script src="engine.js?v=0.17b"></script>
+<script src="portraits.js?v=0.17b"></script>
+<script src="bots.js?v=0.17b"></script>
 <script>
 (function () {
   'use strict';
@@ -689,6 +689,7 @@
     var rows = rep.rows, sch = schedule(rows, rep.T), me = rows.filter(function (r) { return r.car.player; })[0];
     var circ = rep.circuit || circuitFor(run, rep.round), annKey = circ.announcer || 'guy', ann = ANNOUNCERS[annKey];
     var lapLen = rep.T / CFG.laps, speed = 1, showAll = false;
+    var posBase = null, posNow = null, posFlashUntil = 0; // race position beside the gauge; ▲/▼ flash for about a second after a change
     $.innerHTML =
       '<div class="rtop"><div class="hdr sk"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">R' + rep.round + ' · ' + esc(circ.name) + '</span><span id="lapc" style="white-space:nowrap;margin-left:8px">Lap 1/' + CFG.laps + '</span></div>' +
       '<div class="abar"><div class="ahead sm" id="ahead"><svg width="40" height="38" viewBox="0 0 60 56" role="img" aria-label="Announcer ' + esc(ann.name) + '">' + HEADS[annKey] + '</svg></div>' +
@@ -784,6 +785,10 @@
         var wear = x.dead ? '' : '<span style="color:' + ZONE[zoneOf(Math.max(0, x.st.wear))] + '">●</span>';
         return '<div class="tr' + (x.r.car.player ? ' me' : '') + (x.dead ? ' out' : '') + '"><span class="ps">' + (i + 1) + '</span><span class="cb" style="background:' + teamColor(x.r.car) + '"></span>' + faceHTML(x.r.car, 22) + '<span>' + flagOf(x.r.car) + '</span><span class="nm">' + esc(x.r.car.player ? 'You' : x.r.car.name) + '</span><span class="ev">' + ev + '</span>' + wear + '<span class="gp">' + gap + '</span></div>';
       }).join('');
+      var myPos = 1; list.forEach(function (x, i) { if (x.r.car.player) myPos = i + 1; });
+      if (posNow === null || w.s + w.fr < 1) { posNow = posBase = myPos; posFlashUntil = 0; } // grid shuffle at the start: no arrows
+      else if (myPos !== posNow) { if (nowMs >= posFlashUntil) posBase = posNow; posNow = myPos; posFlashUntil = nowMs + 1200; }
+      var pDelta = nowMs < posFlashUntil ? posBase - posNow : 0;
       var st = carState(me, w), wear = Math.max(0, st.wear), z = zoneOf(wear);
       var shown = me.res.events.filter(function (q) { return q.x - 1 < w.s || (q.x - 1 === w.s && w.fr >= 0.5); });
       var hw = st.done ? '' : ['<span style="color:var(--good)">steady</span>', '<span style="color:var(--acc)">shaky</span>', '<span style="color:var(--bad)">OUT OF CONTROL</span>'][st.hs || 0];
@@ -791,7 +796,10 @@
       var v = (st.done || crashedNow) ? 0 : Math.max(0, tt[i1] - tt[i0]), left = Math.max(0, report.T - st.tot), lapNow = Math.min(CFG.laps, 1 + Math.floor(Math.max(0, st.tot) / lapLen));
       var gauge = gaugeHTML(kmh(v), gaugeMax(report.round), kmh(AB.vmaxOf(report.round)), st.hs || 0, crashedNow);
       var dist = st.done ? (crashedNow ? 'Out of the race' : 'Finished!') : 'Lap ' + lapNow + '/' + CFG.laps + ' · ' + kmText(left) + ' to go';
-      document.getElementById('wear').innerHTML = '<div class="spd">' + gauge + '<div class="sdist">' + dist + '</div></div><div class="wrow"><span>Handling</span>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><span>Tires</span><span style="color:' + ZONE[z] + '">' + tireWord(wear) + '</span></div>' +
+      var outNow = st.done && me.res.status === 'crash', finNow = st.done && !outNow;
+      var posHTML = '<div class="rpos' + (outNow ? ' out' : myPos <= 3 ? ' p' + myPos : '') + '"><div class="pn">' + (outNow ? 'OUT' : 'P' + myPos + (finNow ? ' 🏁' : '<small>/' + rows.length + '</small>')) + '</div>' +
+        '<div class="pd2' + (pDelta > 0 ? ' up">▲' + pDelta : pDelta < 0 ? ' dn">▼' + (-pDelta) : '">') + '</div></div>';
+      document.getElementById('wear').innerHTML = '<div class="spd"><div class="spdrow">' + gauge + posHTML + '</div><div class="sdist">' + dist + '</div></div><div class="wrow"><span>Handling</span>' + (hw || '<span class="dim">-</span>') + '</div><div class="wrow"><span>Tires</span><span style="color:' + ZONE[z] + '">' + tireWord(wear) + '</span></div>' +
         '<div class="wbar"><div class="wfill" style="width:' + Math.min(100, wear) + '%;background:' + ZONE[z] + '"></div></div><div class="wlog">' +
         (shown.length ? shown.slice().reverse().map(function (q) { return '<div class="r-' + q.type + '"><span class="dim">' + stamp(me, q.x - 0.5) + '</span> ' + EV_TXT[q.type] + '</div>'; }).join('') : '<div class="dim">No trouble yet.</div>') + '</div>';
     }

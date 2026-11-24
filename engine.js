@@ -70,9 +70,11 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.16b';
+  var VERSION = '0.17b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.17b', items: [
+      'Your race position now sits big next to the speedometer (P4/10), gold, silver or bronze on the podium spots. A quick ▲ or ▼ shows places won or lost, so after a spin you see right away what it cost you.'] },
     { v: '0.16b', items: [
       'Pick your team: every championship starts with three team cards. Each has its own driver (now you have a face too), team colours and a small head start: a free part, extra credits, a free reroll every round or a Sponsor deal.',
       'Speedometer in the Your car panel, plus laps and distance to go. The needle shakes when handling gets shaky.',

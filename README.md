@@ -2,7 +2,11 @@
 
 First playable, built from design doc v0.2 plus the v0.3 decisions (fixed points per position, slower tier ramp, upgrades need the same archetype).
 
-## Changes in this version (v0.16b)
+## Changes in this version (v0.17b)
+
+- **Race position by the speedometer**: big `P4/10` block beside the gauge in the Your car panel, from the same live order as the timing tower. Gold / silver / bronze for P1-P3, `OUT` on a crash, `P3 🏁` at the flag. A ▲n / ▼n flash (1.2 s, sums changes that land inside the window) shows places gained or lost; silent during the first race step while the grid sorts out.
+
+## Previous version (v0.16b)
 
 - **Team selection**: `AB.teamOffers(run, nRacers)` draws 3 cards from the seed (name, colour, racer index, perk); `AB.pickTeam(run, t)` applies the perk. Perks: free T1 part of a random archetype (core slots), +`CFG.teamCash` (10) credits, first reroll every round free (`run.freeRe`, reset in `startShop`), T1 Sponsor. `run.team` is saved. You drive the team's racer (rivals never get her); your jacket takes the team colour, your face has a green ring.
 - **Speedometer**: half-circle gauge in the race Your car block, km/h = 60·√(step speed) (≈160 in round 1, ≈950 in round 9), red zone from the round's vmax, needle jitters when shaky / out of control, ✕ on a crash. Lap and distance to go (1 unit = 40 m).
