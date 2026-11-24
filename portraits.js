@@ -2,7 +2,10 @@
  * Portraits.STYLES: [{ id, name, note }]. Portraits.draw(id) -> svg string (viewBox 240x300).
  * Pixel styles are drawn as vectors and then reduced in the browser: Portraits.pixelate(svg, cb). */
 (function (root) {
-  var uid = 0;
+  var uid = 0, CUR = {};
+  function shade(hex, k) { var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; function f(v) { return Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k))); } return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1); }
+  // The racer being drawn: her palette overrides the style's, and her jacket takes the team colour.
+  function withRacer(P) { var o = CUR.pal || {}; for (var k in o) P[k] = o[k]; if (CUR.team) { P.jacket = CUR.team; P.jacketS = shade(CUR.team, -0.4); } return P; }
   function n(v) { return Math.round(v * 10) / 10; }
   function pt(a) { return n(a[0]) + ',' + n(a[1]); }
 
@@ -72,7 +75,7 @@
           body = '<g transform="translate(' + st.offset[0] + ',' + st.offset[1] + ')">' + out.map(function (o) { return el(o, 'fill'); }).join('') + '</g>' + out.map(function (o) { return el(o, 'line'); }).join('');
         } else body = out.map(function (o) { return el(o, 'both'); }).join('');
         if (wrap) body = wrap(body);
-        return '<svg viewBox="0 0 240 300" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs>' + defs.join('') + '</defs>' + bg + body + '</svg>';
+        return '<svg viewBox="' + (CUR.vb || '0 0 240 300') + '" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs>' + defs.join('') + '</defs>' + bg + body + '</svg>';
       }
     };
   }
@@ -125,7 +128,7 @@
 
   // S1: 80s cel. Brownish lines, long face, smaller almond eyes with lashes and a big round shine, two hard shadow tones, jagged hair shine.
   S.s1 = function () {
-    var st = { lc: '#4a2320', lw: 2.2 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#e0463a', hairS: '#9c2128', hairH: '#ffd2b8', skin: '#f6c39c', skinS: '#dd9474', skinS2: '#c27760', eye: '#6a3fa8', jacket: '#1d4fb0' });
+    var st = { lc: '#4a2320', lw: 2.2 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#e0463a', hairS: '#9c2128', hairH: '#ffd2b8', skin: '#f6c39c', skinS: '#dd9474', skinS2: '#c27760', eye: '#6a3fa8', jacket: '#1d4fb0' }));
     var bg = '<rect width="240" height="300" fill="#f2c94c"/><rect y="170" width="240" height="130" fill="#e98a3a"/><circle cx="190" cy="70" r="36" fill="#fff2b0" opacity="0.7"/>';
     var tips = [[66, 156], [92, 134], [118, 140], [146, 130], [174, 152]];
     bust(c, {
@@ -160,11 +163,11 @@
 
   // S2: 90s cel. Black crisp line, sharp chin, tall eyes with hard white shine, lower lash, hatched blush, zigzag hair shine, cowlick.
   S.s2 = function () {
-    var st = { lc: '#120d16', lw: 2.6 }, c = Canvas(st), P = Object.assign({}, RACER);
+    var st = { lc: '#120d16', lw: 2.6 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#d8402e', hairS: '#7e1c1a', hairH: '#ffd0b0', eye: '#2a7ac8', eyeD: '#123a6a' }));
     var bg = '<rect width="240" height="300" fill="#7ad0e8"/>' + (function () { var s = ''; for (var i = 0; i < 12; i++) s += '<path d="M120,150 L' + (120 + 300 * Math.cos(i / 6 * Math.PI)) + ',' + (150 + 300 * Math.sin(i / 6 * Math.PI)) + ' L' + (120 + 300 * Math.cos((i + 0.5) / 6 * Math.PI)) + ',' + (150 + 300 * Math.sin((i + 0.5) / 6 * Math.PI)) + ' Z" fill="#a4e2f2"/>'; return s; })();
     var tips = [[62, 172], [86, 140], [110, 150], [132, 132], [156, 146], [178, 166]];
     bust(c, {
-      pal: Object.assign(P, { hair: '#d8402e', hairS: '#7e1c1a', hairH: '#ffd0b0', eye: '#2a7ac8', eyeD: '#123a6a' }), w: 50, jy: 198, cy: 232, cs: 2, sideY: 204, tips: tips, vy: [26, 34, 18, 30, 22], sweep: -10,
+      pal: P, w: 50, jy: 198, cy: 232, cs: 2, sideY: 204, tips: tips, vy: [26, 34, 18, 30, 22], sweep: -10,
       faceShade: function (fd) { c.raw('<path d="M60,100 L180,100 L180,152 L160,140 L146,156 L130,138 L112,154 L96,136 L80,152 L60,140 Z" fill="' + P.skinS + '"' + clip(c, fd) + '/>'); },
       eyes: function () {
         [-1, 1].forEach(function (s) {
@@ -194,7 +197,7 @@
 
   // S3: 2000s digital. Rounder face, very big eyes with a gradient iris and two shines, soft blush, smooth glossy hair band.
   S.s3 = function () {
-    var st = { lc: '#3a2228', lw: 2 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#e8693c', hairS: '#b0402a', skin: '#fde0cc', skinS: '#f0bba2', eye: '#3fbf86' });
+    var st = { lc: '#3a2228', lw: 2 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#e8693c', hairS: '#b0402a', skin: '#fde0cc', skinS: '#f0bba2', eye: '#3fbf86' }));
     var bg = '<rect width="240" height="300" fill="#ffe3ef"/><circle cx="40" cy="60" r="30" fill="#fff" opacity="0.6"/><circle cx="200" cy="230" r="50" fill="#fff" opacity="0.5"/>';
     var tips = [[62, 168], [90, 146], [120, 152], [150, 144], [178, 166]];
     bust(c, {
@@ -226,7 +229,7 @@
 
   // S4: 2010s soft. Thin colour-tinted lines, gradients, airbrushed blush, pastel palette, dot shines on hair.
   S.s4 = function () {
-    var st = { lc: '#a0524a', lw: 1.4 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#f08a6a', hairS: '#d0604e', skin: '#fff0e4', skinS: '#f6cdbd', eye: '#e0583a', eyeD: '#8a2a2a', jacket: '#6c8fe0', jacketS: '#4e6cc0', stripe: '#ffc46a' });
+    var st = { lc: '#a0524a', lw: 1.4 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#f08a6a', hairS: '#d0604e', skin: '#fff0e4', skinS: '#f6cdbd', eye: '#e0583a', eyeD: '#8a2a2a', jacket: '#6c8fe0', jacketS: '#4e6cc0', stripe: '#ffc46a' }));
     var bg = '<rect width="240" height="300" fill="#fdf7f2"/><circle cx="200" cy="60" r="70" fill="#ffe0e6" opacity="0.7"/><circle cx="30" cy="250" r="60" fill="#e0ecff" opacity="0.8"/>';
     var tips = [[62, 176], [86, 150], [108, 158], [130, 142], [156, 154], [178, 174]];
     bust(c, {
@@ -268,7 +271,7 @@
   // S5: doujin smug. Big soft head with full lower cheeks, thick even line, flat colour + one hard shadow,
   // long half-lidded eyes glancing sideways, wide :3 mouth, hatched blush, thin pointed bangs that stop above the eyes.
   S.s5 = function () {
-    var st = { lc: '#1a1210', lw: 4 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#f2c45a', hairS: '#c8913a', hairH: '#fff0b8', skin: '#fbe4cf', skinS: '#f0c8aa' });
+    var st = { lc: '#1a1210', lw: 4 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#f2c45a', hairS: '#c8913a', hairH: '#fff0b8', skin: '#fbe4cf', skinS: '#f0c8aa' }));
     var bg = '<rect width="240" height="300" fill="#c9a06e"/>';
     // a long soft lower face: eyes and mouth sit high, lots of chin and cheek below the mouth
     var fd = cheekFace(62, 70, 214, 266, 102);
@@ -309,7 +312,7 @@
 
   // S6: fumo plush. Huge round head on a tiny seated body, no outline, flat felt, deadpan half-lidded eyes, dot mouth, stitched seams.
   S.s6 = function () {
-    var st = { lc: '#3a2a2a', lw: 0 }, c = Canvas(st), P = RACER;
+    var st = { lc: '#3a2a2a', lw: 0 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER));
     var bg = '<rect width="240" height="300" fill="#f4f4f6"/><ellipse cx="120" cy="286" rx="80" ry="8" fill="#000" opacity="0.08"/>';
     var seam = ' stroke="#00000055" stroke-width="1.4" stroke-dasharray="3 3" fill="none"';
     // body sitting
@@ -327,7 +330,7 @@
     [-1, 1].forEach(function (s) {
       var x = CX + s * 33, y = 142, ec = clip(c, ell(x, y, 21, 25));
       c.p(ell(x, y, 21, 25), '#fff', 0);
-      c.raw('<ellipse cx="' + (x + s * 2) + '" cy="' + (y + 3) + '" rx="18" ry="23" fill="#c8323a"' + ec + '/><ellipse cx="' + (x + s * 2) + '" cy="' + (y - 8) + '" rx="18" ry="10" fill="#8a1a22"' + ec + '/>');
+      c.raw('<ellipse cx="' + (x + s * 2) + '" cy="' + (y + 3) + '" rx="18" ry="23" fill="' + (P.fumoEye || '#c8323a') + '"' + ec + '/><ellipse cx="' + (x + s * 2) + '" cy="' + (y - 8) + '" rx="18" ry="10" fill="' + (P.fumoEyeD || '#8a1a22') + '"' + ec + '/>');
       c.raw('<circle cx="' + (x + s * 2 + 6) + '" cy="' + (y - 2) + '" r="2.2" fill="#fff"/>');
       c.p('M' + (x - 23) + ',' + (y - 28) + ' L' + (x + 23) + ',' + (y - 28) + ' L' + (x + 23) + ',' + (y - 13) + ' L' + (x - 23) + ',' + (y - 13) + ' Z', P.skin, 0);
       c.raw('<path d="M' + (x - 21) + ',' + (y - 13) + ' H' + (x + 21) + '" stroke="#3a2a2a" stroke-width="2.6"/><path d="' + ell(x, y, 21, 25).replace(/^M[^a]+/, '') + '" fill="none"/>');
@@ -345,7 +348,7 @@
 
   // S7: gritty. Heavy angular line, hatched shadows, intense narrow eyes with a heavy lash mass, strong brows, coloured lips, loud colours.
   S.s7 = function () {
-    var st = { lc: '#0a0808', lw: 3 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#9be22a', hairS: '#3c6a10', hairH: '#e4ff8a', skin: '#f4c8a8', skinS: '#c89070', eye: '#2ac0a0', jacket: '#3a1a6a', jacketS: '#1e0c3a', stripe: '#ff3a8a' });
+    var st = { lc: '#0a0808', lw: 3 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#9be22a', hairS: '#3c6a10', hairH: '#e4ff8a', skin: '#f4c8a8', skinS: '#c89070', eye: '#2ac0a0', jacket: '#3a1a6a', jacketS: '#1e0c3a', stripe: '#ff3a8a' }));
     var bg = '<rect width="240" height="300" fill="#fbe9b0"/>' + '<g fill="#e8b84a">' + (function () { var s = ''; for (var y = 6; y < 300; y += 12) for (var x = (y / 12 % 2) * 6; x < 240; x += 12) s += '<circle cx="' + x + '" cy="' + y + '" r="' + (1 + y / 120) + '"/>'; return s; })() + '</g>';
     var H = hatch(c, '#2a1410', 1.4, 4.5, 35), H2 = hatch(c, '#2a1410', 1.4, 4.5, -35);
     var tips = [[60, 178], [76, 132], [100, 148], [122, 120], [144, 142], [164, 126], [180, 176]];
@@ -384,7 +387,7 @@
   // S8: 80s action, serious. Heavy furrowed brows over shadowed eye sockets, narrow eyes with small irises,
   // long nose with a hard shadow side, firm short mouth, angular jaw, tendon lines on the neck, chunky dark hair, blazing sky.
   S.s8 = function () {
-    var st = { lc: '#1c1210', lw: 2.4 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#22202c', hairS: '#0e0c12', hairH: '#56688e', skin: '#f2c8a6', skinS: '#c98a68', skinS2: '#8e4a3a', eye: '#3a6ab8', jacket: '#1e2a5a', jacketS: '#111a3a', stripe: '#d8a020' });
+    var st = { lc: '#1c1210', lw: 2.4 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#22202c', hairS: '#0e0c12', hairH: '#56688e', skin: '#f2c8a6', skinS: '#c98a68', skinS2: '#8e4a3a', eye: '#3a6ab8', jacket: '#1e2a5a', jacketS: '#111a3a', stripe: '#d8a020' }));
     var g = lin(c, [[0, '#f0a030'], [0.6, '#f8d040'], [1, '#f08a20']]);
     var bg = '<rect width="240" height="300" fill="' + g + '"/><g fill="none" stroke="#fff6c8" stroke-linecap="round" opacity="0.75">' +
       '<path d="M-10,60 Q80,30 140,56 Q200,80 260,40" stroke-width="7"/><path d="M-10,110 Q70,80 150,100" stroke-width="4"/><path d="M120,20 Q190,10 260,30" stroke-width="5"/><path d="M160,120 Q210,100 260,110" stroke-width="3"/></g>';
@@ -464,7 +467,7 @@
   // a tiny triangle nose, a clenched-teeth grimace drawn as one white block with a drool drop, scratchy red blush strokes,
   // hatched shadows with halftone dots, a fist raised to the chin, warm light from the left.
   S.s10 = function () {
-    var st = { lc: '#2a1a14', lw: 2 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#2c2220', hairS: '#1a1210', skin: '#f6d8b8', skinS: '#dcae8c', eye: '#8a5430', eyeD: '#4a2a16', jacket: '#262a40', jacketS: '#181a2a' });
+    var st = { lc: '#2a1a14', lw: 2 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#2c2220', hairS: '#1a1210', skin: '#f6d8b8', skinS: '#dcae8c', eye: '#8a5430', eyeD: '#4a2a16', jacket: '#262a40', jacketS: '#181a2a' }));
     var g = lin(c, [[0, '#e8b870'], [0.5, '#c88a48'], [1, '#8a5a30']], 0, 0, 1, 1);
     var bg = '<rect width="240" height="300" fill="' + g + '"/><circle cx="20" cy="40" r="90" fill="#fff2c8" opacity="0.35"/>';
     var dots = (function () { var id = c.id('d'); c.def('<pattern id="' + id + '" patternUnits="userSpaceOnUse" width="4" height="4"><circle cx="2" cy="2" r="0.9" fill="#7a4a30"/></pattern>'); return 'url(#' + id + ')'; })();
@@ -520,7 +523,7 @@
   // S11: flat TV comedy. Wide soft face with full cheeks, short bangs, very large eyes with lots of white around a plain oval iris,
   // thin lines, flat colours, small mouth, blush with tick marks.
   S.s11 = function () {
-    var st = { lc: '#2a2226', lw: 1.8 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#c89a72', hairS: '#a47c5a', skin: '#fbe8cc', skinS: '#f0d0b0', eye: '#8a8070', eyeD: '#3a322c', jacket: '#f2e6c2', jacketS: '#e0d0a0', stripe: '#e8788a' });
+    var st = { lc: '#2a2226', lw: 1.8 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { hair: '#c89a72', hairS: '#a47c5a', skin: '#fbe8cc', skinS: '#f0d0b0', eye: '#8a8070', eyeD: '#3a322c', jacket: '#f2e6c2', jacketS: '#e0d0a0', stripe: '#e8788a' }));
     var bg = '<rect width="240" height="300" fill="#bfe6a8"/><circle cx="30" cy="40" r="40" fill="#a6d890"/><circle cx="210" cy="90" r="50" fill="#a6d890"/><circle cx="60" cy="250" r="44" fill="#a6d890"/>';
     var fd = cheekFace(62, 68, 200, 242, 104);
     c.p(backHairPath(64, 232, 4, 0), P.hairS);
@@ -544,6 +547,108 @@
     c.l('M92,82 Q96,98 92,112 M140,80 Q136,96 142,110 M112,70 Q114,84 110,96', P.hairS, 1.4);
     return c.svg(bg);
   };
+
+  // S9b: octopus pilot (original). Big soft mantle, sleepy-cool eyes with bar pupils, goggles strapped on, headset, tentacles everywhere.
+  S.s9o = function () {
+    var st = { lc: '#24102a', lw: 3 }, c = Canvas(st), P = withRacer(Object.assign({}, RACER, { jacket: '#3a6a8a', jacketS: '#24485e' }));
+    var skin = '#d86aa8', skinS = '#a8447e', spot = '#f6a8d0';
+    var bg = '<rect width="240" height="300" fill="#16224a"/><path d="M0,40 L240,120 L240,140 L0,60 Z" fill="#2a3a78"/><circle cx="200" cy="40" r="3" fill="#fff"/><circle cx="30" cy="200" r="2" fill="#fff"/><circle cx="210" cy="230" r="2.4" fill="#fff"/>';
+    c.p(bodyPath(246), P.jacket); c.p(collarPath(246, 18), P.jacketS);
+    // tentacles behind and over the shoulders
+    c.p('M70,200 Q20,220 24,270 Q30,290 44,282 Q40,250 80,226 Z', skin); c.p('M170,200 Q220,214 214,262 Q208,284 196,276 Q204,244 160,226 Z', skin);
+    c.raw('<g fill="' + spot + '"><circle cx="36" cy="262" r="3"/><circle cx="46" cy="246" r="2.6"/><circle cx="204" cy="256" r="3"/><circle cx="196" cy="240" r="2.6"/></g>');
+    // mantle
+    c.p('M120,34 C190,34 196,110 186,150 C178,190 150,208 120,208 C90,208 62,190 54,150 C44,110 50,34 120,34 Z', skin);
+    c.raw('<path d="M150,50 C186,70 188,130 176,170 C168,190 150,200 136,204 C168,170 172,100 150,50 Z" fill="' + skinS + '"/><g fill="' + spot + '"><circle cx="90" cy="70" r="6"/><circle cx="110" cy="56" r="4"/><circle cx="76" cy="96" r="3.4"/><circle cx="140" cy="62" r="3"/></g>');
+    // front tentacles (one holding a wrench)
+    c.p('M84,196 Q76,236 92,262 Q100,270 104,262 Q92,236 100,204 Z', skin); c.p('M156,196 Q166,232 150,258 Q142,266 138,258 Q152,232 140,204 Z', skin);
+    c.p('M128,206 Q140,240 176,236 Q188,232 182,224 Q156,228 144,204 Z', skin);
+    c.p('M176,214 L200,190 L208,196 L206,186 L214,180 L208,174 L198,182 L192,176 L188,186 L170,208 Z', '#b8c0d0', 2);
+    // eyes: big lids, horizontal bar pupils
+    var mood = CUR.mood || 'sig';
+    [-1, 1].forEach(function (s) {
+      var x = CX + s * 30, y = 132;
+      c.p(ell(x, y, 20, 17), '#fff6d8', 3);
+      c.raw('<ellipse cx="' + (x + s * 1) + '" cy="' + (y + 3) + '" rx="12" ry="10" fill="#f0c020"/><rect x="' + (x + s * 1 - 9) + '" y="' + (y + 1) + '" width="18" height="4.5" rx="2" fill="#1a0a10"/><circle cx="' + (x + 5) + '" cy="' + (y - 3) + '" r="2.4" fill="#fff"/>');
+      if (mood !== 'win') c.p('M' + (x - 21) + ',' + (y - 4) + ' Q' + x + ',' + (y - 22) + ' ' + (x + 21) + ',' + (y - 4) + ' Z', skin, 3);
+    });
+    // goggles up on the mantle, headset
+    c.p('M60,92 Q120,62 180,92 L178,102 Q120,74 62,102 Z', '#3a3a44', 0);
+    c.raw('<circle cx="98" cy="80" r="13" fill="#8fd8ff" stroke="#3a3a44" stroke-width="5"/><circle cx="142" cy="80" r="13" fill="#8fd8ff" stroke="#3a3a44" stroke-width="5"/>');
+    c.p('M44,136 h14 v26 h-14 Z', '#5a5a66'); c.l('M52,162 Q58,194 92,190', '#3a3a44', 3); c.raw('<rect x="90" y="186" width="8" height="8" fill="#ff3a3a"/>');
+    if (mood === 'sig') c.l('M108,170 Q120,176 134,166', st.lc, 2.6);
+    return c.svg(bg);
+  };
+
+  // ---------- the in-game roster: 2 racers per style (S9 gets a coyote and an octopus) ----------
+  var RACERS = [
+    { id: 'vera', name: 'Vera Voltage', style: 's1', pal: { hair: '#c8389a', hairS: '#7a1a5a', hairH: '#ffc8e8', eye: '#2bb5a0' } },
+    { id: 'jade', name: 'Jade Jetstream', style: 's1', pal: { hair: '#18a8a0', hairS: '#0c6460', hairH: '#b8fff4', eye: '#6b3fa8' } },
+    { id: 'kaede', name: 'Kaede Kickdown', style: 's2', pal: {} },
+    { id: 'hime', name: 'Hime Hairpin', style: 's2', pal: { hair: '#2a2440', hairS: '#120f20', hairH: '#8a80c0', eye: '#c0283c', eyeD: '#601020' } },
+    { id: 'mio', name: 'Mio Mach', style: 's3', pal: {} },
+    { id: 'momo', name: 'Momo Morning', style: 's3', pal: { hair: '#ff7ab0', hairS: '#c04a80', eye: '#29a0d6', eyeD: '#0e4a70' } },
+    { id: 'suzu', name: 'Suzu Sideways', style: 's4', pal: {} },
+    { id: 'lumi', name: 'Lumi Lowride', style: 's4', pal: { hair: '#9ab8f0', hairS: '#6a88c8', eye: '#7a5cff', eyeD: '#3a2a8a' } },
+    { id: 'sana', name: 'Smug Sana', style: 's5', pal: {} },
+    { id: 'nemu', name: 'Nemu Nitro', style: 's5', pal: { hair: '#8a6ad8', hairS: '#5a40a0', hairH: '#d8c8ff' } },
+    { id: 'mochi', name: 'Mochi', style: 's6', pal: {} },
+    { id: 'bun', name: 'Bun', style: 's6', pal: { hair: '#7fe0c0', hairS: '#45a88a', fumoEye: '#3a5ac8', fumoEyeD: '#1a2a6a' } },
+    { id: 'raven', name: 'Raven Redline', style: 's7', pal: {} },
+    { id: 'frost', name: 'Frost Fang', style: 's7', pal: { hair: '#e8ecf6', hairS: '#8a94ac', hairH: '#ffffff', eye: '#ff4a6a' } },
+    { id: 'ash', name: 'Ash Arrow', style: 's8', pal: {} },
+    { id: 'rin', name: 'Rin Rampart', style: 's8', pal: { hair: '#6a3020', hairS: '#3a1810', hairH: '#c87a5a', eye: '#5a8a3a' } },
+    { id: 'cole', name: 'Coyote Cole', style: 's9', pal: {} },
+    { id: 'octavia', name: 'Inky Octavia', style: 's9o', pal: {} },
+    { id: 'kiri', name: 'Kiri Clutch', style: 's10', pal: {} },
+    { id: 'tama', name: 'Tama Torque', style: 's10', pal: { hair: '#5a3a20', hairS: '#3a2410', eye: '#4a6a8a', eyeD: '#1a2a4a' } },
+    { id: 'nano', name: 'Nano Neutral', style: 's11', pal: {} },
+    { id: 'pippa', name: 'Pippa Pitlane', style: 's11', pal: { hair: '#3a3a48', hairS: '#24242e', eye: '#6a7a9a', eyeD: '#2a3248' } }
+  ];
+  // Where each style's face sits (for small round crops) and where its mouth is (for the win and crash moods).
+  var FACE = {
+    s1: { vb: '50 96 140 140', m: [120, 206, 26], skin: '#f6c39c', lc: '#4a2320' }, s2: { vb: '50 96 140 140', m: [121, 206, 24], skin: '#f7d2b6', lc: '#120d16' },
+    s3: { vb: '48 96 144 144', m: [120, 209, 22], skin: '#fde0cc', lc: '#3a2228' }, s4: { vb: '50 98 140 140', m: [120, 206, 18], skin: '#fff0e4', lc: '#a0524a' },
+    s5: { vb: '40 82 160 160', m: [120, 193, 0], skin: '#fbe4cf', lc: '#1a1210' }, s6: { vb: '30 40 180 180', m: [120, 180, 10], skin: '#f7d2b6', lc: '#3a2a2a' },
+    s7: { vb: '50 96 140 140', m: [120, 214, 36], skin: '#f4c8a8', lc: '#0a0808' }, s8: { vb: '50 98 140 140', m: [120, 216, 30], skin: '#f2c8a6', lc: '#1c1210' },
+    s9: { vb: '40 50 160 160', m: [122, 208, 40], skin: '#f4dcb0', lc: '#1a1008' }, s9o: { vb: '30 40 180 180', m: [121, 170, 0], skin: '#d86aa8', lc: '#24102a' },
+    s10: { vb: '40 76 160 160', m: [122, 208, 70], skin: '#f6d8b8', lc: '#2a1a14', tf: 'translate(120,170) rotate(-7) scale(1.16) translate(-120,-178)' },
+    s11: { vb: '45 98 150 150', m: [120, 225, 24], skin: '#fbe8cc', lc: '#2a2226' }
+  };
+  // Mood overlays: 'win' = open grin + sparkles, 'crash' = wobbly mouth, sweat, dizzy stars and a plaster.
+  function moodOverlay(style, mood) {
+    var F = FACE[style], x = F.m[0], y = F.m[1], w = Math.min(28, F.m[2]), o = '';
+    if (mood === 'sig') return '';
+    if (w && style !== 's9o') o += '<ellipse cx="' + x + '" cy="' + y + '" rx="' + (F.m[2] / 2 + 5) + '" ry="' + (style === 's10' ? 14 : 9) + '" fill="' + F.skin + '"/>';
+    if (mood === 'win') {
+      var ww = Math.max(16, w);
+      o += '<path d="M' + (x - ww / 2) + ',' + (y - 3) + ' Q' + x + ',' + (y + ww * 0.55) + ' ' + (x + ww / 2) + ',' + (y - 3) + ' Z" fill="#8a2a32" stroke="' + F.lc + '" stroke-width="2.2" stroke-linejoin="round"/>' +
+        '<path d="M' + (x - ww / 4) + ',' + (y + ww * 0.2) + ' Q' + x + ',' + (y + ww * 0.42) + ' ' + (x + ww / 4) + ',' + (y + ww * 0.2) + ' Z" fill="#ff8a9a"/>';
+      o += '<g fill="#fff6a0" stroke="#e0a020" stroke-width="1.2">' + [[40, 70, 9], [200, 60, 11], [206, 130, 7], [32, 150, 6]].map(function (s2) { var a = s2[0], b = s2[1], r = s2[2]; return '<path d="M' + a + ',' + (b - r) + ' L' + (a + r * 0.3) + ',' + (b - r * 0.3) + ' L' + (a + r) + ',' + b + ' L' + (a + r * 0.3) + ',' + (b + r * 0.3) + ' L' + a + ',' + (b + r) + ' L' + (a - r * 0.3) + ',' + (b + r * 0.3) + ' L' + (a - r) + ',' + b + ' L' + (a - r * 0.3) + ',' + (b - r * 0.3) + ' Z"/>'; }).join('') + '</g>';
+    } else {
+      var cw = Math.max(16, w);
+      o += '<path d="M' + (x - cw / 2) + ',' + y + ' q' + (cw / 8) + ',-5 ' + (cw / 4) + ',0 t' + (cw / 4) + ',0 t' + (cw / 4) + ',0 t' + (cw / 4) + ',0" fill="none" stroke="' + F.lc + '" stroke-width="2.4" stroke-linecap="round"/>';
+      o += '<path d="M178,104 q8,12 0,18 q-8,-6 0,-18 Z M188,124 q6,9 0,13 q-6,-4 0,-13 Z" fill="#a8e0ff" stroke="#2a6a9a" stroke-width="1.2"/>';
+      o += '<rect x="64" y="186" width="20" height="9" rx="3" fill="#f4e0c0" stroke="#8a6a40" stroke-width="1.2" transform="rotate(-20 74 190)"/><path d="M71,186 v9 M77,185 v9" stroke="#c8a878" stroke-width="1" transform="rotate(-20 74 190)"/>';
+      o += '<g fill="#ffd23f" stroke="#a07a00" stroke-width="1">' + [[84, 40], [120, 30], [156, 40]].map(function (s2) { return '<path d="M' + s2[0] + ',' + (s2[1] - 6) + ' l2,4 l4,1 l-3,3 l1,4 l-4,-2 l-4,2 l1,-4 l-3,-3 l4,-1 Z"/>'; }).join('') + '</g>';
+      o += '<rect width="240" height="300" fill="#2a3050" opacity="0.18"/>';
+    }
+    return F.tf ? '<g transform="' + F.tf + '">' + o + '</g>' : o;
+  }
+  var cache = {};
+  // Draw a racer: opts { mood: 'sig' | 'win' | 'crash', team: '#hex', crop: true for a square face crop }. Returns an svg string.
+  function drawRacer(r, opts) {
+    opts = opts || {};
+    var mood = opts.mood || 'sig', key = r.id + '|' + mood + '|' + (opts.team || '') + '|' + (opts.crop ? 1 : 0);
+    if (cache[key]) return cache[key];
+    CUR = { pal: r.pal, team: opts.team, mood: mood, vb: opts.crop ? FACE[r.style].vb : null };
+    var svg = S[r.style]();
+    CUR = {};
+    var ov = moodOverlay(r.style, mood);
+    if (ov) svg = svg.replace(/<\/svg>$/, ov + '</svg>');
+    return (cache[key] = svg);
+  }
+  function racerURL(r, opts) { var k = 'u|' + r.id + '|' + ((opts && opts.mood) || 'sig') + '|' + ((opts && opts.team) || '') + '|' + (opts && opts.crop ? 1 : 0); return cache[k] || (cache[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(drawRacer(r, opts))); }
 
   var STYLES = [
     { id: 's1', name: '80s cel', note: 'brown lines, long face, almond eyes with lashes, two shadow tones' },
@@ -577,5 +682,5 @@
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
-  root.Portraits = { STYLES: STYLES, draw: function (id) { return S[id](); }, pixelate: pixelate };
+  root.Portraits = { STYLES: STYLES, RACERS: RACERS, draw: function (id) { return S[id](); }, drawRacer: drawRacer, racerURL: racerURL, pixelate: pixelate };
 })(typeof self !== 'undefined' ? self : this);

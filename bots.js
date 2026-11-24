@@ -27,7 +27,7 @@
   // Value of a marketing part in credits over the remaining shops.
   function marketingValue(p, shopsLeft) {
     var m = AB.marketingInfo(p);
-    return (m.credits + (m.rerolls - 1) * 4 + m.extra * 4 + m.find * 20 + m.prize * AB.CFG.botExpectedPts + m.bet * 1) * shopsLeft;
+    return (m.credits + (m.rerolls - 1) * 4 + m.extra * 4 + m.find * 20 + m.prize * AB.CFG.botExpectedPts + m.bet * 1 + (m.insCash || 0) * 0.15 + (m.insPts || 0) * 0.6 + (m.grudge || 0) * 1.2) * shopsLeft;
   }
 
   function pickPersonality(rng) {
@@ -155,7 +155,7 @@
         var nb = AB.applyPurchase(state.build, off), gain = cur - expertValue(nb, round, seed);
         if (off.s === 'marketing') { // credits are worth what parts buy with them: about 0.02 steps per credit
           var m1 = AB.marketingInfo(nb.marketing), m0 = AB.marketingInfo(state.build.marketing);
-          gain += 0.02 * shopsLeft * ((m1.credits - m0.credits) + (m1.prize - m0.prize) * CFG.botExpectedPts + (m1.extra - m0.extra + m1.rerolls - m0.rerolls) * 4 + (m1.find - m0.find) * 20 + (m1.bet - m0.bet) * 1);
+          gain += 0.02 * shopsLeft * ((m1.credits - m0.credits) + (m1.prize - m0.prize) * CFG.botExpectedPts + (m1.extra - m0.extra + m1.rerolls - m0.rerolls) * 4 + (m1.find - m0.find) * 20 + (m1.bet - m0.bet) * 1 + ((m1.insCash || 0) - (m0.insCash || 0)) * 0.15 + ((m1.insPts || 0) - (m0.insPts || 0)) * 0.6 + ((m1.grudge || 0) - (m0.grudge || 0)) * 1.2);
         }
         var sc = gain / Math.max(3, k.cost);
         if (k.cost > state.credits) { if (gain > 0 && (!unaff || sc > unaff.sc)) unaff = { sc: sc, cost: k.cost }; return; }
