@@ -27,8 +27,8 @@
     pilotAccel: 0.02,                // pilot: momentum builds 2% faster per effective tier
     bookie: [6, 2],                  // Bookie: podium pays 6 cr per tier, finishing outside the top 5 costs 2 per tier
     designPower: 1,                  // Design adds this share of its bonus as power, and its full bonus as top speed
-    stockTireLimit: 50, tirePriceStep: 0.1, handlingPrice: 0.85, // tires cost +10% per tier above T1, handling parts 15% less
-    tierPrices: [0, 10, 22, 38, 55], /* part price by tier (x archetype factor) */ upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
+    stockTireLimit: 50, tirePriceStep: 0.1, handlingPrice: 0.85, mktPrice: 0.6, // tires cost +10% per tier above T1, handling parts 15% less, marketing 40% less
+    tierPrices: [0, 10, 26, 50, 85], /* part price by tier (x archetype factor) */ upgradeCost: [0.75, 0.75, 0.75], // an upgrade costs 75% of the part's price
     // Upgrade multiplier per tier (index = tier, then stars 0..3): cheap tiers gain less, so a 3-star T1 can't outrun a T4.
     upgradeMult: [[1, 1, 1, 1], [1, 1.3, 1.6, 2.0], [1, 1.4, 2.0, 3.0], [1, 1.5, 2.3, 3.5], [1, 1.5, 2.5, 4.0]],
     engineT1Mult: [1, 1.3, 1.5, 1.8],        // T1 engines gain even less (less early-game reliance on them)
@@ -65,9 +65,13 @@
     vmax: [7.2, 13, 21.3, 33.3, 50, 73.3, 103.3, 143.3, 193.3], capK: 2
   };
 
-  var VERSION = '0.13b';
+  var VERSION = '0.14b';
   // Shown in the main menu ("What's new"), newest first. Keep each line short.
   var CHANGELOG = [
+    { v: '0.14b', items: [
+      'Shop offers now tell you what a part does to YOUR car in the next race, on its circuit: seconds per race, how worn your tires end up, and your crash odds. The old pips are gone.',
+      'Bigger price gaps between tiers: parts cost 10 / 26 / 50 / 85 credits for T1-T4 (was 10 / 22 / 38 / 55). Marketing costs 40% less, so investing early to afford the top tiers later is a real choice.',
+      'Portrait lab: 11 new art styles for the rival racers are up for a vote (link on the main menu).'] },
     { v: '0.13b', items: ['The announcer box keeps a fixed size so the screen no longer jumps.', 'The circuit name no longer covers the track (it is in the header).'] },
     { v: '0.13', items: [
       'Race screen reorganised: the announcer, the circuit and the track’s effects stay pinned at the top while you scroll through clear blocks: Your car, Live racer view and Timing tower.',
@@ -452,6 +456,20 @@
     return out;
   }
 
+  /* Shop part info: what a purchase does to YOUR car in the next race (its circuit included).
+   * Pace from the no-trouble middle run; crash odds and trouble from replays that share their dice between the two builds. */
+  function raceProfile(build, round, ctx) {
+    var T = raceLen(round), car = prepareCar(build, ctx), vm = vmaxOf(round), mid = (car.rollLo + car.rollHi) / 2;
+    var r = runCar(car, T, mulberry32(1), { lite: true, noEvents: true, vmax: vm, roll: Math.max(0.02, Math.min(1, mid)) });
+    var N = 80, crashes = 0, evs = 0;
+    for (var i = 0; i < N; i++) { var rr = runCar(car, T, mulberry32(9001 + i * 7919 + round), { lite: true, vmax: vm }); if (rr.status === 'crash') crashes++; evs += rr.events.length; }
+    return { time: (r.status === 'fin' ? r.x : CFG.capX) * CFG.secPerStep, wear: r.wear + 100 * r.over, crash: crashes / N, trouble: evs / N };
+  }
+  function partImpact(build, offer, round, ctx) {
+    var a = raceProfile(build, round, ctx), b = raceProfile(applyPurchase(build, offer), round, ctx);
+    return { dt: b.time - a.time, w0: a.wear, w1: b.wear, crash0: a.crash, crash1: b.crash, trouble0: a.trouble, trouble1: b.trouble };
+  }
+
   /* After a race: the pilot gains 1 xp, every other upgraded part gains its stars in xp. */
   function bumpExperience(b) {
     SLOTS.forEach(function (s) {
@@ -471,7 +489,7 @@
   function shopQuality(build) { return marketingOf(build).q; }
   function rerollsOf(build) { return marketingOf(build).rerolls; }
 
-  function price(offer) { return Math.round(CFG.tierPrices[offer.t] * archInfo(offer.s, offer.a).f * (offer.s === 'tires' ? 1 + CFG.tirePriceStep * (offer.t - 1) : offer.s === 'handling' ? CFG.handlingPrice : 1)); }
+  function price(offer) { return Math.round(CFG.tierPrices[offer.t] * archInfo(offer.s, offer.a).f * (offer.s === 'tires' ? 1 + CFG.tirePriceStep * (offer.t - 1) : offer.s === 'handling' ? CFG.handlingPrice : offer.s === 'marketing' ? CFG.mktPrice : 1)); }
   // What buying this offer would do to this build.
   function classify(build, offer) {
     var own = build[offer.s];
@@ -819,7 +837,7 @@
   }
 
   return {
-    CHANGELOG: CHANGELOG, CIRCUITS: CIRCUITS, calendarOf: calendarOf, circuitOf: circuitOf, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
+    CHANGELOG: CHANGELOG, CIRCUITS: CIRCUITS, calendarOf: calendarOf, circuitOf: circuitOf, tireInfo: tireInfo, handlingInfo: handlingInfo, pilotInfo: pilotInfo, loadFactor: loadFactor, FLAGS: FLAGS, fieldFlags: fieldFlags, raceLen: raceLen, lapLenOf: lapLenOf, partImpact: partImpact, raceProfile: raceProfile, fmtTime: fmtTime, behindOf: behindOf, playerBehind: playerBehind, engineFn: engineFn, designFn: designFn,
     CFG: CFG, SLOTS: SLOTS, SLOT_NAME: SLOT_NAME, ARCH: ARCH, archInfo: archInfo,
     mulberry32: mulberry32, gauss: gauss, pickWeighted: pickWeighted,
     startBuild: startBuild, cloneBuild: cloneBuild, prepareCar: prepareCar, runCar: runCar, raceField: raceField,

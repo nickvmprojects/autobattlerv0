@@ -53,6 +53,7 @@
   .st { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; font-style:italic; text-transform:uppercase; }
   .st .l { width:104px; flex-shrink:0; white-space:nowrap; }
   .pips { display:flex; gap:3px; }
+  .imp { font-size:14px; margin:6px 0 2px; line-height:1.35; } .imp .ih { font-weight:800; letter-spacing:.5px; color:var(--acc); margin-right:2px; } .imp .p { color:var(--good); font-weight:700; } .imp .m { color:var(--bad); font-weight:700; }
   .pip { width:12px; height:12px; border-radius:50%; border:2px solid #3a4562; background:transparent; }
   .pip.on { border-color:var(--acc); background:var(--acc); }
   .pip.bad { border-color:var(--bad); background:var(--bad); }
@@ -138,8 +139,8 @@
 </head>
 <body>
 <div id="app"><p class="dim">Warming up the paddock...</p></div>
-<script src="engine.js?v=0.13b"></script>
-<script src="bots.js?v=0.13b"></script>
+<script src="engine.js?v=0.14b"></script>
+<script src="bots.js?v=0.14b"></script>
 <script>
 (function () {
   'use strict';
@@ -389,6 +390,19 @@
       return '<div class="st"><span class="l">' + x.l + '</span><span class="pips">' + h + '</span></div>';
     }).join('') + '</div>';
   }
+  // Shop part info (v0.14b): what this offer does to your car in the next race, measured by replaying it.
+  function impactHTML(off, shown, own) {
+    if (off.s === 'marketing') {
+      var m1 = AB.marketingInfo(shown), m0 = AB.marketingInfo(own), dc = Math.round(m1.credits - m0.credits), dr = m1.rerolls - m0.rerolls;
+      return '<div class="imp"><span class="ih">ON YOUR CAR</span> <span class="' + (dc >= 0 ? 'p' : 'm') + '">' + (dc >= 0 ? '+' : '−') + Math.abs(dc) + ' cr per round</span> · <span class="' + (dr >= 0 ? 'p' : 'm') + '">' + (dr >= 0 ? '+' : '−') + Math.abs(dr) + ' reroll' + (Math.abs(dr) === 1 ? '' : 's') + '</span> · <span class="dim">no effect on speed</span></div>';
+    }
+    var ctx = { behind: AB.playerBehind(run), circuit: circuitFor(run, run.round) }, x = AB.partImpact(run.build, off, run.round, ctx);
+    var dt = Math.round(x.dt * 10) / 10, t = Math.abs(dt) < 0.1 ? '<span class="dim">same pace</span>' : '<span class="' + (dt < 0 ? 'p' : 'm') + '">' + (dt < 0 ? '−' : '+') + Math.abs(dt).toFixed(1) + ' s per race</span>';
+    var w0 = Math.round(x.w0), w1 = Math.round(x.w1), wl = function (w) { return w > 100 ? 'overheat' : w + '%'; };
+    var w = '<span class="' + (w1 <= w0 ? (w1 < w0 ? 'p' : 'dim') : 'm') + '">tires ' + wl(w0) + ' → ' + wl(w1) + ' worn</span>';
+    var c0 = Math.round(x.crash0 * 100), c1 = Math.round(x.crash1 * 100), c = '<span class="' + (c1 === c0 ? 'dim' : c1 < c0 ? 'p' : 'm') + '">crash ' + c0 + '% → ' + c1 + '%</span>';
+    return '<div class="imp"><span class="ih">ON YOUR CAR</span> ' + t + ' · ' + w + ' · ' + c + '</div>';
+  }
   function vsHTML(nw, own) {
     var a = pipsOf(nw), b = pipsOf(own), parts = [];
     a.forEach(function (x, i) { var d = x.n - b[i].n; if (d) parts.push('<span class="' + ((d > 0) !== x.bad ? 'p' : 'm') + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + ' ' + x.l + '</span>'); });
@@ -410,7 +424,7 @@
   }
   function slotCard(p, canSell) {
     var sell = (canSell && p.t > 0) ? '<button class="sell" data-act="sell" data-s="' + p.s + '">Sell +' + AB.sellValue(p) + '</button>' : '';
-    return '<div class="card mine k-' + p.s + '" style="--k:var(--' + p.s + ')">' + partHead(p) + sell + '</div>' + pipsHTML(p) +
+    return '<div class="card mine k-' + p.s + '" style="--k:var(--' + p.s + ')">' + partHead(p) + sell + '</div>' + '<div class="d">' + esc(AB.describe(p)) + '</div>' +
       (AB.expText(p) ? '<div class="xp">' + esc(AB.expText(p)) + '</div>' : '') + '</div>';
   }
   function partLine(p) { return '<div class="pl" style="--k:var(--' + p.s + ')"><span class="sn">' + AB.SLOT_NAME[p.s] + '</span>' + chips(p) + ' <b>' + esc(AB.partName(p)) + '<span class="star">' + AB.stars(p) + '</span></b><div class="d">' + esc(AB.describe(p)) + '</div></div>'; }
@@ -451,12 +465,13 @@
       '<p class="dim">Build a racing team out of six math functions, then race 9 rounds against 9 recorded rival cars. The last team in the standings is cut after rounds 2, 4, 6 and 8.</p>';
     if (saved) h += '<button class="big go" data-act="resume">Resume championship</button>';
     h += '<button class="big"' + (saved ? ' style="background:#1d2438"' : '') + ' data-act="new">New championship</button>' +
+      '<a href="portraits.html" style="display:block;text-align:center;margin:4px 0 10px;color:var(--acc);font-weight:700">Portrait lab: rate the new art styles ›</a>' +
       '<p style="font-style:italic;font-weight:600">YOUR FLAG <select id="flagSel">' + AB.FLAGS.map(function (f) { return '<option' + (f === myFlag() ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></p>' +
       whatsNew() +
       '<details><summary>HOW IT WORKS</summary>' +
       '<p>Each round: shop, then a 3-lap race. First across the line after 3 laps wins. Times are in seconds.</p>' +
       '<p><b style="color:var(--engine)">Engine</b> makes power. <b style="color:var(--design)">Design</b> adds power and raises your top speed (fast cars need <b style="color:var(--handling)">Handling</b> grip to use it). <b style="color:var(--tires)">Tires</b> have a limit: push the engine past it and they wear, and worn tires puncture, blow out, spin you around or crash you. <b style="color:var(--pilot)">Pilot</b> rolls the dice. <b style="color:var(--marketing)">Marketing</b> earns credits and rerolls.</p>' +
-      '<p>Pips show how a part compares with every other part of its slot. Red pips are a cost (engine tire stress).</p>' +
+      '<p>Every offer shows what it would do to <b>your</b> car in the next race, on that circuit: seconds gained or lost, how worn your tires end up at the flag, and your crash odds. It’s measured by replaying the race, and trouble is still luck.</p>' +
       '<p>Buying the exact part you own (same archetype and tier) upgrades it, up to 3 stars, for 75% of its price. Upgraded parts season every race; pilots always gain experience. A different part trades the old one in for half of what you paid. Lock the shop to keep its offers for next round.</p>' +
       '<p>Points: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. A crash scores 0. Your game saves itself after every shop action.</p></details>' +
       '<h2>Your stats</h2><table>' +
@@ -485,7 +500,7 @@
       if (k.kind === 'upgrade') { shown = AB.applyPurchase(run.build, off)[off.s]; tag = '<div class="tag up">Upgrade → ' + '★'.repeat(shown.u) + ' · keeps its experience</div>'; }
       else { shown = AB.newPart(off.s, off.a, off.t); tag = '<div class="tag rep">' + (k.kind === 'maxed' ? 'Maxed out' : 'Replaces ' + esc(AB.partName(own)) + AB.stars(own) + (k.trade ? ' · trade-in +' + k.trade : '') + (k.bonus ? ' · bonus +' + k.bonus : '')) + '</div>'; }
       var dis = (k.kind === 'maxed' || k.cost > run.credits) ? ' disabled' : '';
-      h += '<div class="card" style="--k:var(--' + off.s + ')">' + partHead(shown) + '</div>' + pipsHTML(shown) + vsHTML(shown, own) +
+      h += '<div class="card" style="--k:var(--' + off.s + ')">' + partHead(shown) + '</div>' + (k.kind === 'maxed' ? '' : impactHTML(off, shown, own)) +
         '<div class="d">' + esc(AB.describe(shown)) + '</div>' + tag +
         '<button class="buy" data-act="buy" data-i="' + i + '"' + dis + '>' + (k.kind === 'maxed' ? 'Maxed' : k.cost < 0 ? 'Swap · get ' + (-k.cost) + ' cr' : 'Buy · ' + k.cost + ' cr') + '</button></div>';
     });
