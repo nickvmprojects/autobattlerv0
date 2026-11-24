@@ -270,38 +270,40 @@
   S.s5 = function () {
     var st = { lc: '#1a1210', lw: 4 }, c = Canvas(st), P = Object.assign({}, RACER, { hair: '#f2c45a', hairS: '#c8913a', hairH: '#fff0b8', skin: '#fbe4cf', skinS: '#f0c8aa' });
     var bg = '<rect width="240" height="300" fill="#c9a06e"/>';
-    var fd = cheekFace(64, 72, 212, 252, 104);
-    c.p(backHairPath(66, 270, 12, 0), P.hairS);
-    c.p(bodyPath(272), P.jacket); c.p('M84,286 L156,286 L158,296 L82,296 Z', P.stripe, 2.5);
-    c.p(collarPath(272, 14), P.jacketS, 3);
-    c.p(earPath(1, 64, 178), P.skin);
+    // a long soft lower face: eyes and mouth sit high, lots of chin and cheek below the mouth
+    var fd = cheekFace(62, 70, 214, 266, 102);
+    c.p(backHairPath(66, 250, 10, 0), P.hairS);
+    c.p(bodyPath(284), P.jacket);
+    c.p(collarPath(284, 14), P.jacketS, 3);
+    c.p(earPath(1, 62, 170), P.skin);
     c.p(fd, P.skin);
     var cl = clip(c, fd);
-    c.raw('<path d="M40,100 L200,100 L200,150 L176,140 L160,154 L140,138 L122,152 L100,138 L82,152 L62,140 L40,152 Z" fill="' + P.skinS + '"' + cl + '/>');
+    c.raw('<path d="M40,100 L200,100 L200,134 L176,126 L160,138 L140,124 L122,136 L100,124 L82,138 L62,126 L40,136 Z" fill="' + P.skinS + '"' + cl + '/>');
     [-1, 1].forEach(function (s) {
-      var x = CX + s * 31, y = 188;
-      // long sleepy eye: flat heavy lid on top, curved bottom
-      var E = 'M' + pt([x - 19, y - 3]) + ' L' + pt([x + 19, y - 3]) + ' C' + pt([x + 19, y + 9]) + ' ' + pt([x - 19, y + 9]) + ' ' + pt([x - 19, y - 3]) + ' Z', ec = clip(c, E);
+      var x = CX + s * 30, y = 166;
+      // smug eye: heavy flat lid tilted down toward the nose, iris pushed into the corner, white sliver
+      var tl = s * 2, E = 'M' + pt([x - 18, y - 2 + tl]) + ' L' + pt([x + 18, y - 2 - tl]) + ' C' + pt([x + 18, y + 9]) + ' ' + pt([x - 18, y + 9]) + ' ' + pt([x - 18, y - 2 + tl]) + ' Z', ec = clip(c, E);
       c.p(E, '#fff', 0);
-      c.raw('<ellipse cx="' + (x + 8) + '" cy="' + (y + 3) + '" rx="10" ry="9" fill="#8a4f1c"' + ec + '/><ellipse cx="' + (x + 8) + '" cy="' + (y + 1) + '" rx="10" ry="4" fill="#5a3010"' + ec + '/>');
-      c.raw('<rect x="' + (x + 11) + '" y="' + (y - 2) + '" width="5" height="3" fill="#fff"/>', 'line');
-      c.l('M' + pt([x - 22, y - 4]) + ' L' + pt([x + 22, y - 4]), st.lc, 5.5);
-      c.l('M' + pt([x - 15, y + 8]) + ' Q' + pt([x, y + 13]) + ' ' + pt([x + 16, y + 7]), st.lc, 2);
-      c.l('M' + pt([x - 16, y - 16]) + ' Q' + pt([x, y - 20]) + ' ' + pt([x + 16, y - 15]), st.lc, 2.4);
-      // cheek blush with hatching
-      c.raw('<ellipse cx="' + (CX + s * 46) + '" cy="208" rx="14" ry="7" fill="#f4a8a0" opacity="0.75"/>');
-      c.l('M' + (CX + s * 46 - 8) + ',204 l-3,7 M' + (CX + s * 46 - 2) + ',204 l-3,7 M' + (CX + s * 46 + 4) + ',204 l-3,7 M' + (CX + s * 46 + 10) + ',204 l-3,7', '#d06060', 1.6);
+      c.raw('<ellipse cx="' + (x + 9) + '" cy="' + (y + 3) + '" rx="10" ry="9" fill="#9a5a20"' + ec + '/><ellipse cx="' + (x + 9) + '" cy="' + (y + 0) + '" rx="10" ry="4" fill="#5a3010"' + ec + '/>');
+      c.raw('<rect x="' + (x + 12) + '" y="' + (y - 1) + '" width="5" height="3" fill="#fff"/>', 'line');
+      c.l('M' + pt([x - 21, y - 3 + tl * 1.1]) + ' L' + pt([x + 21, y - 3 - tl * 1.1]), st.lc, 5.5);
+      c.l('M' + pt([x - 13, y + 8]) + ' Q' + pt([x, y + 12]) + ' ' + pt([x + 14, y + 7]), st.lc, 2);
+      // raised, relaxed brows
+      c.l('M' + pt([x - 14, y - 20]) + ' Q' + pt([x, y - 26]) + ' ' + pt([x + 14, y - 21]), st.lc, 2.4);
+      // blush hatching high on the cheeks, under the eyes
+      c.raw('<ellipse cx="' + (CX + s * 40) + '" cy="186" rx="13" ry="6" fill="#f4a8a0" opacity="0.7"/>');
+      c.l('M' + (CX + s * 40 - 8) + ',182 l-3,7 M' + (CX + s * 40 - 2) + ',182 l-3,7 M' + (CX + s * 40 + 4) + ',182 l-3,7 M' + (CX + s * 40 + 10) + ',182 l-3,7', '#d06060', 1.6);
     });
-    c.raw('<circle cx="122" cy="206" r="1.8" fill="#1a1210"/>', 'line');
-    c.l('M100,222 Q110,234 120,224 Q130,234 140,222', st.lc, 3.4);
-    c.l('M98,224 l-5,-3 M142,224 l5,-3', st.lc, 2.4);
-    // side locks in front of the cheeks, bangs of thin pointed strands
-    c.p('M54,120 Q44,190 56,262 Q62,252 64,236 Q60,190 70,140 Z', P.hair);
-    c.p('M186,120 Q196,190 184,262 Q178,252 176,236 Q180,190 170,140 Z', P.hair);
-    c.p(bangsPath(64, 170, [[60, 150], [76, 132], [94, 146], [110, 128], [128, 146], [146, 126], [164, 144], [180, 158]], [16, 12, 16, 12, 16, 12, 10], 6, 36), P.hair);
-    c.p('M84,76 Q120,58 156,76 L148,86 L138,78 L128,88 L118,78 L108,88 L98,80 Z', P.hairH, 0);
-    c.l('M90,104 L96,128 M150,102 L144,124', P.hairS, 2);
-    c.p('M114,40 Q110,12 134,8 Q122,20 126,40 Z', P.hair);
+    c.raw('<circle cx="121" cy="183" r="1.8" fill="#1a1210"/>', 'line');
+    // wide cat smile with up-curled corners, then a long chin below it
+    c.l('M90,190 Q94,198 104,199 Q114,200 120,192 Q126,200 136,199 Q146,198 150,190', st.lc, 3.4);
+    c.l('M88,188 l-3,-4 M152,188 l3,-4', st.lc, 2.6);
+    c.l('M108,242 Q120,248 132,242', st.lc, 1.4, ' opacity="0.35"');
+    // fine pointed bangs that stop above the brows
+    c.p(bangsPath(62, 150, [[60, 140], [76, 124], [94, 136], [110, 120], [128, 134], [146, 118], [164, 132], [180, 140]], [14, 10, 14, 10, 14, 10, 8], 6, 34), P.hair);
+    c.p('M84,74 Q120,56 156,74 L148,84 L138,76 L128,86 L118,76 L108,86 L98,78 Z', P.hairH, 0);
+    c.l('M90,100 L96,120 M150,98 L144,116', P.hairS, 2);
+    c.p('M114,38 Q110,10 134,6 Q122,18 126,38 Z', P.hair);
     return c.svg(bg);
   };
 
@@ -467,9 +469,11 @@
     c.p(neckPath(17, 220, 272), P.skin);
     c.p(fd, P.skin);
     c.raw('<path d="M60,100 L180,100 L180,140 Q120,128 60,140 Z" fill="' + P.skinS + '"' + clip(c, fd) + '/>');
+    c.raw('<path d="M60,128 L180,128 L180,150 Q120,140 60,150 Z" fill="' + hatch(c, '#c89080', 0.8, 3.2, 70) + '"' + clip(c, fd) + '/><path d="M96,230 Q120,246 144,230 L144,250 L96,250 Z" fill="' + hatch(c, '#c89080', 0.8, 3.2, 70) + '"' + clip(c, fd) + '/>', 'line');
     [-1, 1].forEach(function (s) {
       var x = CX + s * 30, y = 168;
       c.p(ell(x, y, 19, 20), '#fff', 2.6);
+      c.raw('<path d="M' + (x - 18) + ',' + (y - 4) + ' Q' + x + ',' + (y - 24) + ' ' + (x + 18) + ',' + (y - 4) + ' Q' + x + ',' + (y - 14) + ' ' + (x - 18) + ',' + (y - 4) + ' Z" fill="#c8c0c8"/>');
       c.raw('<circle cx="' + (x - s * 1) + '" cy="' + (y + 2) + '" r="13" fill="' + P.eye + '"/>');
       var rays = ''; for (var i = 0; i < 28; i++) { var a = i / 28 * Math.PI * 2; rays += 'M' + pt([x - s + Math.cos(a) * 5, y + 2 + Math.sin(a) * 5]) + ' L' + pt([x - s + Math.cos(a) * 12, y + 2 + Math.sin(a) * 12]) + ' '; }
       c.l(rays, P.eyeD, 0.6, ' opacity="0.7"');
@@ -477,9 +481,12 @@
       c.ink(ell(x - s, y + 2, 4, 4), '#120a08');
       c.raw('<ellipse cx="' + (x + 4) + '" cy="' + (y - 5) + '" rx="5.5" ry="4.5" fill="#fff"/><circle cx="' + (x - 6) + '" cy="' + (y + 8) + '" r="1.8" fill="#fff"/>', 'line');
       c.l('M' + pt([x - 17, y - 9]) + ' Q' + pt([x, y - 24]) + ' ' + pt([x + 17, y - 9]), st.lc, 3.2);
-      c.l('M' + pt([x + s * 16, y - 12]) + ' l' + (s * 3) + ',-3 M' + pt([x + s * 10, y - 17]) + ' l' + (s * 2) + ',-4', st.lc, 1.4);
+      var lash = ''; for (var q = 0; q < 7; q++) { var a2 = Math.PI * (1.12 + q * 0.11), lx = x + Math.cos(a2) * 19, ly = y + Math.sin(a2) * 20; lash += 'M' + pt([lx, ly]) + ' l' + n(Math.cos(a2) * 5) + ',' + n(Math.sin(a2) * 5 - 1) + ' '; }
+      c.l(lash, st.lc, 1.2);
+      c.l('M' + pt([x - 8, y + 21]) + ' l-1,3 M' + pt([x, y + 22]) + ' l0,3 M' + pt([x + 8, y + 21]) + ' l1,3', st.lc, 1);
       c.l('M' + pt([x - 9, y - 32]) + ' Q' + pt([x, y - 35]) + ' ' + pt([x + 9, y - 32]), st.lc, 1.6);
-      c.raw('<circle cx="' + (CX + s * 42) + '" cy="200" r="11" fill="#ffa8b8"/>');
+      var bx = CX + s * 42; c.raw('<circle cx="' + bx + '" cy="200" r="12" fill="#ffb4c0"/>');
+      c.l('M' + (bx - 10) + ',194 l-3,10 M' + (bx - 5) + ',191 l-4,16 M' + bx + ',190 l-4,18 M' + (bx + 5) + ',191 l-4,16 M' + (bx + 10) + ',194 l-3,10', '#e0485a', 0.9);
     });
     c.l('M121,188 Q113,192 118,198 Q124,200 126,195', st.lc, 1.8);
     c.p('M104,212 Q120,210 136,212 Q134,230 120,232 Q106,230 104,212 Z', '#a8323e', 2.2);
@@ -491,6 +498,7 @@
     var strands = '', hc = clip(c, bd);
     for (var j = 0; j < 60; j++) { var x0 = 50 + j * 2.4, bend = Math.sin(j * 0.9) * 6; strands += 'M' + pt([CX + (x0 - CX) * 0.4, 44]) + ' Q' + pt([x0 + bend, 96]) + ' ' + pt([x0 + bend * 1.6, 200]) + ' '; }
     c.raw('<path d="' + strands + '" fill="none" stroke="#5a4a58" stroke-width="0.7"' + hc + '/>', 'line');
+    c.raw('<path d="M70,84 Q120,62 170,84" fill="none" stroke="#8a7a88" stroke-width="5" opacity="0.6"' + hc + '/><path d="M74,92 Q120,72 166,92" fill="none" stroke="#b8a8b8" stroke-width="1.6" opacity="0.7"' + hc + '/>', 'line');
     return c.svg(bg, function (b) { return '<g transform="translate(120,166) rotate(-6) scale(1.22) translate(-120,-170)">' + b + '</g>'; });
   };
 
@@ -507,11 +515,11 @@
     c.p(fd, P.skin);
     [-1, 1].forEach(function (s) {
       var x = CX + s * 31, y = 178;
-      c.p(ell(x, y, 20, 25), '#fff', 1.6);
-      c.raw('<ellipse cx="' + (x - s * 2) + '" cy="' + (y + 4) + '" rx="10" ry="14" fill="' + P.eye + '"/><ellipse cx="' + (x - s * 2) + '" cy="' + (y + 9) + '" rx="6" ry="6" fill="#aca290"/>');
-      c.raw('<ellipse cx="' + (x - s * 2) + '" cy="' + (y + 4) + '" rx="10" ry="14" fill="none" stroke="' + P.eyeD + '" stroke-width="2.6"/>', 'line');
-      c.raw('<circle cx="' + (x - s * 2 + 3) + '" cy="' + (y - 3) + '" r="4" fill="#fff"/>', 'line');
-      c.l('M' + pt([x - 20, y - 4]) + ' Q' + pt([x, y - 30]) + ' ' + pt([x + 20, y - 4]), st.lc, 3);
+      var ec = clip(c, ell(x, y, 19, 24));
+      c.p(ell(x, y, 19, 24), '#fff', 2.4);
+      c.raw('<ellipse cx="' + (x - s * 1) + '" cy="' + (y + 6) + '" rx="12" ry="15" fill="' + P.eye + '"' + ec + '/><path d="M' + (x - s * 1 - 9) + ',' + (y + 10) + ' Q' + (x - s * 1) + ',' + (y + 24) + ' ' + (x - s * 1 + 9) + ',' + (y + 10) + ' Q' + (x - s * 1) + ',' + (y + 17) + ' ' + (x - s * 1 - 9) + ',' + (y + 10) + ' Z" fill="#b4aa98"' + ec + '/>');
+      c.raw('<ellipse cx="' + (x - s * 1) + '" cy="' + (y + 6) + '" rx="12" ry="15" fill="none" stroke="' + P.eyeD + '" stroke-width="2.4"' + ec + '/>', 'line');
+      c.raw('<circle cx="' + (x - s * 1 + 4) + '" cy="' + (y - 1) + '" r="4.2" fill="#fff"/>', 'line');
       c.l('M' + pt([x - 9, y - 40]) + ' Q' + pt([x, y - 43]) + ' ' + pt([x + 9, y - 40]), st.lc, 1.4);
       var bx = CX + s * 48; c.raw('<ellipse cx="' + bx + '" cy="214" rx="9" ry="6" fill="#ffaaa0" opacity="0.85"/>'); c.l('M' + (bx - 3) + ',211 v5 M' + (bx + 1) + ',211 v5 M' + (bx + 5) + ',211 v5', '#e07a70', 1);
     });
@@ -527,13 +535,13 @@
     { id: 's2', name: '90s cel', note: 'black crisp lines, sharp chin, tall shiny eyes, hatched blush' },
     { id: 's3', name: '2000s digital', note: 'round face, big gradient eyes, double shine, glossy hair' },
     { id: 's4', name: '2010s soft', note: 'thin tinted lines, gradients, airbrushed blush, pastels' },
-    { id: 's5', name: 'Doujin smug', note: 'big soft head, full cheeks, long half-lidded eyes, :3 mouth' },
+    { id: 's5', name: 'Doujin smug', note: 'eyes and smile set high over a long soft chin, heavy tilted lids' },
     { id: 's6', name: 'Fumo plush', note: 'big felt head, tiny seated body, seams, deadpan eyes' },
     { id: 's7', name: 'Gritty', note: 'angular heavy line, hatching, lash mass, coloured lips' },
     { id: 's8', name: 'Film realism', note: 'realistic proportions, ringed irises, half-face hard shadow' },
     { id: 's9', name: 'Furry pilot', note: 'coyote pilot, clean sci-fi vector (no pixels)' },
     { id: 's10', name: 'Asano close-up', note: 'gentle round face, big rimmed eyes, fine strand hair, flat pink cheeks' },
-    { id: 's11', name: 'Flat TV comedy', note: 'full cheeks, short bangs, huge white eyes, flat colours' }
+    { id: 's11', name: 'Flat TV comedy', note: 'full cheeks, short bangs, tall outlined eyes, no lids' }
   ];
 
   // Pixel styles: rasterise at a tiny size, snap every pixel to a 16 colour palette, then scale up with hard pixels.
